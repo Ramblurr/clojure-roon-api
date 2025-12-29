@@ -1,0 +1,6 @@
+{:skip-comments true
+ :lint-as       {clojure.test.check.clojure-test/defspec clojure.test/deftest
+                 }
+ :linters       {}}
+
+
