@@ -128,3 +128,184 @@
     (is (valid? schema/Loop "disabled"))
     (is (valid? schema/Loop "loop"))
     (is (valid? schema/Loop "loop_one"))))
+
+;;; Zone Value Assertions (from Java ZoneMapperTest)
+
+(deftest zone-foo-values
+  (testing "Zone 'Foo' has expected values"
+    (let [zones-response (load-json-fixture "bodies/get_zones_response.json")
+          zones          (get zones-response "zones")
+          foo            (first (filter #(= "Foo" (get % "display_name")) zones))]
+      (is (some? foo) "Foo zone should exist")
+      (is (= "160163df90e742c33b0b2404ae5d08cb8908" (get foo "zone_id")))
+      (is (= "Foo" (get foo "display_name")))
+      (is (= "stopped" (get foo "state")))
+      (is (= false (get foo "is_next_allowed")))
+      (is (= false (get foo "is_previous_allowed")))
+      (is (= false (get foo "is_pause_allowed")))
+      (is (= true (get foo "is_play_allowed")))
+      (is (= false (get foo "is_seek_allowed")))
+      (is (= 0 (get foo "queue_items_remaining")))
+      (is (= 0 (get foo "queue_time_remaining")))
+      ;; Settings
+      (let [settings (get foo "settings")]
+        (is (= "disabled" (get settings "loop")))
+        (is (= false (get settings "shuffle")))
+        (is (= true (get settings "auto_radio"))))
+      ;; Now playing
+      (let [np (get foo "now_playing")]
+        (is (some? np))
+        (is (nil? (get np "seek_position")))
+        (is (= "Holiday Jazz - JAZZRADIO.com" (get-in np ["one_line" "line1"])))))))
+
+(deftest zone-baz-values
+  (testing "Zone 'Baz' (paused with track) has expected values"
+    (let [zones-response (load-json-fixture "bodies/get_zones_response.json")
+          zones          (get zones-response "zones")
+          baz            (first (filter #(= "Baz" (get % "display_name")) zones))]
+      (is (some? baz) "Baz zone should exist")
+      (is (= "16010e07332ef639cc7e2560953d8e108390" (get baz "zone_id")))
+      (is (= "paused" (get baz "state")))
+      (is (= true (get baz "is_next_allowed")))
+      (is (= true (get baz "is_previous_allowed")))
+      (is (= true (get baz "is_seek_allowed")))
+      (is (= 7 (get baz "queue_items_remaining")))
+      (is (= 2362 (get baz "queue_time_remaining")))
+      ;; Now playing with track info
+      (let [np (get baz "now_playing")]
+        (is (some? np))
+        (is (= 138 (get np "seek_position")))
+        (is (= 760 (get np "length")))
+        (is (= "9e9d4f41b5f00ffaf42a875d60e60bce" (get np "image_key")))
+        (is (= "Gil Mellé" (get-in np ["two_line" "line2"])))
+        (is (= "The Complete Blue Note Fifties Sessions" (get-in np ["three_line" "line3"])))))))
+
+(deftest zone-scooby-playing-values
+  (testing "Zone 'Scooby' (playing) has expected values"
+    (let [zones-response (load-json-fixture "bodies/get_zones_response.json")
+          zones          (get zones-response "zones")
+          scooby         (first (filter #(= "Scooby" (get % "display_name")) zones))]
+      (is (some? scooby) "Scooby zone should exist")
+      (is (= "16013065cbe8e3ecaf4c8c47d851e7641867" (get scooby "zone_id")))
+      (is (= "playing" (get scooby "state")))
+      (is (= true (get scooby "is_pause_allowed")))
+      (is (= false (get scooby "is_play_allowed")))
+      (is (= 4964 (get scooby "queue_items_remaining")))
+      (is (= 1678953 (get scooby "queue_time_remaining")))
+      ;; Has multiple outputs (grouped zone)
+      (is (= 3 (count (get scooby "outputs"))))
+      ;; Now playing
+      (let [np (get scooby "now_playing")]
+        (is (= 93 (get np "seek_position")))
+        (is (= 372 (get np "length")))
+        (is (= "Popsy" (get-in np ["two_line" "line1"])))
+        (is (= "Bobby Timmons Trio / Bobby Timmons" (get-in np ["two_line" "line2"])))))))
+
+(deftest zone-bar-no-now-playing
+  (testing "Zone 'Bar' (stopped, no now_playing) has expected values"
+    (let [zones-response (load-json-fixture "bodies/get_zones_response.json")
+          zones          (get zones-response "zones")
+          bar            (first (filter #(= "Bar" (get % "display_name")) zones))]
+      (is (some? bar) "Bar zone should exist")
+      (is (= "1601367641070e02f66dee7898248238f265" (get bar "zone_id")))
+      (is (= "stopped" (get bar "state")))
+      (is (nil? (get bar "now_playing")) "Bar should have no now_playing"))))
+
+;;; Output Value Assertions (from Java OutputMapperTest)
+
+(deftest output-bar-with-volume
+  (testing "Output 'Bar' has volume settings"
+    (let [outputs-response (load-json-fixture "bodies/get_outputs_response.json")
+          outputs          (get outputs-response "outputs")
+          bar              (first (filter #(= "Bar" (get % "display_name")) outputs))]
+      (is (some? bar) "Bar output should exist")
+      (is (= "1701367641070e02f66dee7898248238f265" (get bar "output_id")))
+      (is (= "1601367641070e02f66dee7898248238f265" (get bar "zone_id")))
+      ;; Volume
+      (let [vol (get bar "volume")]
+        (is (some? vol) "Bar should have volume")
+        (is (= "number" (get vol "type")))
+        (is (= 0 (get vol "min")))
+        (is (= 100 (get vol "max")))
+        (is (= 0 (get vol "value")))
+        (is (= 1 (get vol "step")))
+        (is (= false (get vol "is_muted")))))))
+
+(deftest output-baz-volume-value
+  (testing "Output 'Baz' volume value is 7"
+    (let [outputs-response (load-json-fixture "bodies/get_outputs_response.json")
+          outputs          (get outputs-response "outputs")
+          baz              (first (filter #(= "Baz" (get % "display_name")) outputs))]
+      (is (some? baz))
+      (is (= 7 (get-in baz ["volume" "value"]))))))
+
+(deftest output-foo-no-volume
+  (testing "Output 'Foo' has no volume (no volume control)"
+    (let [outputs-response (load-json-fixture "bodies/get_outputs_response.json")
+          outputs          (get outputs-response "outputs")
+          foo              (first (filter #(= "Foo" (get % "display_name")) outputs))]
+      (is (some? foo) "Foo output should exist")
+      (is (= "170163df90e742c33b0b2404ae5d08cb8908" (get foo "output_id")))
+      (is (nil? (get foo "volume")) "Foo should not have volume"))))
+
+(deftest output-fred-source-control-standby
+  (testing "Output 'Fred' has source control with standby support"
+    (let [outputs-response (load-json-fixture "bodies/get_outputs_response.json")
+          outputs          (get outputs-response "outputs")
+          fred             (first (filter #(= "Fred" (get % "display_name")) outputs))]
+      (is (some? fred))
+      (let [sc (first (get fred "source_controls"))]
+        (is (some? sc))
+        (is (= true (get sc "supports_standby")))
+        (is (= "selected" (get sc "status")))))))
+
+(deftest output-can-group-with-ids
+  (testing "Output can_group_with_output_ids contains expected IDs"
+    (let [outputs-response (load-json-fixture "bodies/get_outputs_response.json")
+          outputs          (get outputs-response "outputs")
+          bar              (first (filter #(= "Bar" (get % "display_name")) outputs))
+          group-ids        (get bar "can_group_with_output_ids")]
+      (is (= 5 (count group-ids)))
+      (is (some #{"1701367641070e02f66dee7898248238f265"} group-ids))
+      (is (some #{"170163df90e742c33b0b2404ae5d08cb8908"} group-ids)))))
+
+;;; Queue Change Operation Tests (from Java QueueChangeMapperTest)
+
+(deftest queue-change-remove-operation
+  (testing "Queue change REMOVE operation has correct structure"
+    (let [response (load-json-fixture "bodies/queue_change_response.json")
+          changes  (get response "changes")
+          remove   (first (filter #(= "remove" (get % "operation")) changes))]
+      (is (some? remove) "Should have remove operation")
+      (is (valid? schema/QueueChange remove))
+      (is (= "remove" (get remove "operation")))
+      (is (= 0 (get remove "index")))
+      (is (= 10 (get remove "count"))))))
+
+(deftest queue-change-insert-operation
+  (testing "Queue change INSERT operation has correct structure"
+    (let [response (load-json-fixture "bodies/queue_change_response.json")
+          changes  (get response "changes")
+          insert   (first (filter #(= "insert" (get % "operation")) changes))]
+      (is (some? insert) "Should have insert operation")
+      (is (valid? schema/QueueChange insert))
+      (is (= "insert" (get insert "operation")))
+      (is (= 0 (get insert "index")))
+      (let [items (get insert "items")]
+        (is (= 10 (count items)))
+        ;; First item
+        (let [first-item (first items)]
+          (is (= 1057136 (get first-item "queue_item_id")))
+          (is (= 245 (get first-item "length")))
+          (is (= "Mrs. Butterworth" (get-in first-item ["two_line" "line1"])))
+          (is (= "Nirvana" (get-in first-item ["two_line" "line2"]))))
+        ;; Last item
+        (let [last-item (last items)]
+          (is (= 1057145 (get last-item "queue_item_id")))
+          (is (= 150 (get last-item "length")))
+          (is (= "Polly" (get-in last-item ["two_line" "line1"]))))))))
+
+(deftest queue-changed-data-validates
+  (testing "QueueChangedData schema validates fixture"
+    (let [response (load-json-fixture "bodies/queue_change_response.json")]
+      (is (valid? schema/QueueChangedData response)))))

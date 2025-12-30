@@ -126,6 +126,25 @@
   [:map
    ["outputs" [:vector Output]]])
 
+;;; Discovery Types
+
+(def Core
+  "Discovered Roon Core from SOOD."
+  [:map
+   [:unique-id :string]
+   [:host :string]
+   [:port :int]
+   [:name {:optional true} [:maybe :string]]
+   [:version {:optional true} [:maybe :string]]])
+
+;;; Persistence Types
+
+(def RoonState
+  "Persisted connection state."
+  [:map
+   [::tokens [:map-of :string :string]]
+   [::paired-core-id {:optional true} [:maybe :string]]])
+
 ;;; Queue Types
 
 (def QueueItem
@@ -230,6 +249,28 @@
   "Payload for ::reconnected event. Same shape as RegisteredData."
   RegisteredData)
 
+;;; Pairing Event Payloads
+
+(def CoreFoundData
+  "Payload for ::core-found event."
+  Core)
+
+(def CoreLostData
+  "Payload for ::core-lost event."
+  [:map
+   [:core-id :string]])
+
+(def CorePairedData
+  "Payload for ::core-paired event."
+  [:map
+   [:core-id :string]
+   [:core-name {:optional true} [:maybe :string]]])
+
+(def PairingChangedData
+  "Payload for ::pairing-changed event (sent to pairing subscribers)."
+  [:map
+   ["paired_core_id" [:maybe :string]]])
+
 ;;; Event Registry
 
 (def EventDataRegistry
@@ -250,7 +291,12 @@
    ::outputs-added      OutputsAddedData
    ::outputs-removed    OutputsRemovedData
    ::queue-subscribed   QueueSubscribedData
-   ::queue-changed      QueueChangedData})
+   ::queue-changed      QueueChangedData
+   ;; Pairing events
+   ::core-found         CoreFoundData
+   ::core-lost          CoreLostData
+   ::core-paired        CorePairedData
+   ::pairing-changed    PairingChangedData})
 
 (def EventType
   "Enum of all valid event types. Derived from EventDataRegistry."

@@ -52,7 +52,9 @@
   ;; Disconnect
   (roon/disconnect! conn)
   ```"
-  (:require [ol.roon.connection :as conn]))
+  (:require [ol.roon.connection :as conn]
+            [ol.roon.persistence :as persist]
+            [ol.roon.sood :as sood]))
 
 (set! *warn-on-reflection* true)
 
@@ -97,8 +99,68 @@
   [{:keys [conn]}]
   (conn/connected? conn))
 
+;;; Discovery
+
+(defn discover!
+  "Discovers Roon Cores on the network via SOOD.
+
+  Queries all IPv4 network interfaces via multicast and broadcast.
+  Deduplicates responses by unique-id.
+
+  Options:
+  | key         | default | description                    |
+  |-------------|---------|--------------------------------|
+  | :timeout-ms | 3000    | Discovery timeout              |
+
+  Returns seq of Core records with :unique-id, :host, :port, :name, :version."
+  ([] (sood/discover!))
+  ([opts] (sood/discover! opts)))
+
+(defn discover-one!
+  "Discovers first available Roon Core.
+
+  Convenience for single-core setups. Returns Core or nil."
+  ([] (sood/discover-one!))
+  ([opts] (sood/discover-one! opts)))
+
+;;; Persistence
+
+(defn extract-state
+  "Extracts persistable state from connection.
+
+  Returns map with :tokens and :paired-core-id suitable for
+  serialization and later use with apply-state."
+  [{:keys [conn]}]
+  (persist/extract-state conn))
+
+(defn apply-state
+  "Merges persisted state into connection config.
+
+  Arguments:
+  - config: Connection config map
+  - saved-state: Persisted state from extract-state
+  - core-id: The core_id to get token for
+
+  Returns updated config with :token for the specified core."
+  [config saved-state core-id]
+  (persist/apply-state config saved-state core-id))
+
+(defn state->edn
+  "Serializes state to EDN string for storage."
+  [state]
+  (persist/state->edn state))
+
+(defn edn->state
+  "Deserializes state from EDN string."
+  [s]
+  (persist/edn->state s))
+
+;;; Legacy helpers (for backwards compatibility)
+
 (defn save-config
   "Extracts token and core-id for persistence.
+
+  DEPRECATED: Use extract-state instead for multi-core support.
 
   Returns a map that can be serialized and passed to connect!
   on next run to skip re-authorization."
@@ -108,6 +170,8 @@
      :core-id (get core-info "core_id")}))
 
 (defn load-config
-  "Loads saved config from EDN file."
+  "Loads saved config from EDN file.
+
+  DEPRECATED: Use edn->state and apply-state instead."
   [path]
   (read-string (slurp path)))

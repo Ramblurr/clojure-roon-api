@@ -16,6 +16,7 @@
   (:require [clojure.core.async :as a :refer [<!! chan put!]]
             [ol.roon.moo :as moo]
             [ol.roon.schema :as roon]
+            [ol.roon.services.pairing :as pairing]
             [ol.roon.websocket :as ws])
   (:import [java.util.concurrent.atomic AtomicLong]))
 
@@ -46,20 +47,21 @@
   "Creates a new Connection (not yet connected).
 
   Config map:
-  | key                 | required | description                         |
-  |---------------------|----------|-------------------------------------|
-  | :host               | yes      | Roon Core IP or hostname            |
-  | :extension-id       | no       | Unique extension identifier         |
-  | :display-name       | no       | Human-readable name                 |
-  | :display-version    | no       | Version string (default 1.0.0)      |
-  | :publisher          | no       | Publisher name                      |
-  | :email              | no       | Contact email                       |
-  | :token              | no       | Saved auth token for reconnection   |
-  | :port               | no       | WebSocket port (default 9330)       |
-  | :timeout-ms         | no       | Request timeout (default 30000)     |
-  | :auto-reconnect     | no       | Auto-reconnect (default true)       |
-  | :backoff-initial-ms | no       | Initial backoff (default 1000)      |
-  | :backoff-max-ms     | no       | Max backoff (default 60000)         |"
+  | key                 | required | description                              |
+  |---------------------|----------|------------------------------------------|
+  | :host               | yes      | Roon Core IP or hostname                 |
+  | :extension-id       | no       | Unique extension identifier              |
+  | :display-name       | no       | Human-readable name                      |
+  | :display-version    | no       | Version string (default 1.0.0)           |
+  | :publisher          | no       | Publisher name                           |
+  | :email              | no       | Contact email                            |
+  | :token              | no       | Saved auth token for reconnection        |
+  | :port               | no       | WebSocket port (default 9330)            |
+  | :timeout-ms         | no       | Request timeout (default 30000)          |
+  | :auto-reconnect     | no       | Auto-reconnect (default true)            |
+  | :backoff-initial-ms | no       | Initial backoff (default 1000)           |
+  | :backoff-max-ms     | no       | Max backoff (default 60000)              |
+  | :on-core-lost       | no       | Callback fn(core-id) when pairing changes|"
   [config]
   (->Connection
    (merge default-config config)
@@ -67,6 +69,8 @@
           :websocket               nil
           :pending                 {}
           :subscriptions           {}
+          :provided-services       {}  ;; name -> service spec
+          :provided-subscriptions  {}  ;; subscription-key -> {:subscription "name" :req-id n}
           :core-info               nil
           :token                   nil
           :explicitly-disconnected false})
@@ -152,6 +156,102 @@
   [{:keys [state]} sub-key]
   (swap! state update :subscriptions dissoc sub-key))
 
+;;; Provided service management
+
+(defn register-provided-service!
+  "Registers a provided service spec.
+
+  service - map with :name, :methods, and optionally :subscriptions"
+  [{:keys [state]} service]
+  (swap! state assoc-in [:provided-services (:name service)] service))
+
+(defn get-provided-service
+  "Gets a registered provided service by name."
+  [{:keys [state]} service-name]
+  (get-in @state [:provided-services service-name]))
+
+(defn- add-provided-subscription!
+  "Adds a provided service subscription for tracking."
+  [{:keys [state]} subscription-key sub-name req-id]
+  (swap! state assoc-in [:provided-subscriptions subscription-key]
+         {:subscription sub-name :req-id req-id :subscription-key subscription-key}))
+
+(defn get-provided-subscriptions
+  "Gets all provided service subscriptions for a subscription name."
+  [{:keys [state]} sub-name]
+  (filter (fn [[_ v]] (= sub-name (:subscription v)))
+          (:provided-subscriptions @state)))
+
+(defn- remove-provided-subscription!
+  "Removes a provided service subscription by subscription key."
+  [{:keys [state]} subscription-key]
+  (swap! state update :provided-subscriptions dissoc subscription-key))
+
+(defn- parse-service-uri
+  "Parses a service URI into [service-name method-name].
+
+  Example: \"com.roonlabs.pairing:1/get_pairing\" -> [\"com.roonlabs.pairing:1\" \"get_pairing\"]"
+  [uri]
+  (let [idx (.lastIndexOf ^String uri "/")]
+    (when (pos? idx)
+      [(subs uri 0 idx) (subs uri (inc idx))])))
+
+(defn- normalize-core-info
+  "Converts core-info string keys to keyword keys for internal use.
+
+  Input:  {\"core_id\" \"abc\" \"display_name\" \"My Core\"}
+  Output: {:id \"abc\" :name \"My Core\"}"
+  [core-info]
+  (when core-info
+    {:id   (get core-info "core_id")
+     :name (get core-info "display_name")}))
+
+(defn- find-subscription-for-unsubscribe
+  "Finds the subscription spec for an unsubscribe method.
+
+  E.g., for 'unsubscribe_pairing', finds 'subscribe_pairing' spec."
+  [service method-name]
+  (when (.startsWith ^String method-name "unsubscribe_")
+    (let [sub-name (.replace ^String method-name "unsubscribe_" "subscribe_")]
+      (get-in service [:subscriptions sub-name]))))
+
+(defn handle-provided-service!
+  "Handles an incoming request for a provided service.
+
+  Dispatches to the appropriate method or subscription handler.
+  Returns the response map or nil if service not found."
+  [{:keys [state] :as conn} uri body req-id]
+  (when-let [[service-name method-name] (parse-service-uri uri)]
+    (when-let [service (get-provided-service conn service-name)]
+      (let [core (normalize-core-info (:core-info @state))]
+        (cond
+          ;; Check methods first
+          (get-in service [:methods method-name])
+          (let [method-fn (get-in service [:methods method-name])]
+            (method-fn core body))
+
+          ;; Check if it's a subscription start (subscribe_*)
+          (get-in service [:subscriptions method-name])
+          (let [sub-spec (get-in service [:subscriptions method-name])
+                start-fn (:start sub-spec)]
+            ;; Track the subscription with request ID for broadcasts
+            (when-let [sub-key (get body "subscription_key")]
+              (add-provided-subscription! conn sub-key method-name req-id))
+            (when start-fn
+              (start-fn core body)))
+
+          ;; Check if it's an unsubscribe (unsubscribe_*)
+          (find-subscription-for-unsubscribe service method-name)
+          (let [sub-spec (find-subscription-for-unsubscribe service method-name)
+                end-fn   (:end sub-spec)]
+            ;; Remove subscription from tracking
+            (when-let [sub-key (get body "subscription_key")]
+              (remove-provided-subscription! conn sub-key))
+            ;; Call end handler if provided
+            (if end-fn
+              (end-fn core body)
+              {:verb :complete :name "Success" :body nil})))))))
+
 ;;; Backoff calculation
 
 (defn calculate-backoff
@@ -229,15 +329,34 @@
                (println "[WARN] Send error:" (.getMessage e)))))
          (recur))))))
 
+(defn- send-broadcast!
+  "Sends a broadcast message to all subscribers of a subscription name."
+  [{:keys [send-ch] :as conn} sub-name response-name body]
+  (doseq [[_ {:keys [req-id]}] (get-provided-subscriptions conn sub-name)]
+    (let [msg (moo/encode-response :continue response-name req-id body)]
+      (put! send-ch msg))))
+
 (defn- handle-incoming-request!
-  "Handles incoming REQUEST from Roon (e.g., ping)."
-  [{:keys [send-ch]} req-id name _body]
-  (case name
-    "com.roonlabs.ping:1/ping"
+  "Handles incoming REQUEST from Roon (e.g., ping, provided services)."
+  [{:keys [send-ch] :as conn} req-id uri body]
+  (cond
+    ;; Built-in ping handler
+    (= uri "com.roonlabs.ping:1/ping")
     (let [response (moo/encode-response :complete "Success" req-id nil)]
       (put! send-ch response))
-    ;; Default: log unknown
-    (println "[WARN] Unhandled incoming request:" name)))
+
+    ;; Try provided services
+    :else
+    (if-let [result (handle-provided-service! conn uri body req-id)]
+      (do
+        ;; Send response to requester
+        (let [response (moo/encode-response (:verb result) (:name result) req-id (:body result))]
+          (put! send-ch response))
+        ;; Send broadcast to all subscribers if specified
+        (when-let [broadcast-sub (:broadcast result)]
+          (send-broadcast! conn broadcast-sub (:name result) (:body result))))
+      ;; Unknown request
+      (println "[WARN] Unhandled incoming request:" uri))))
 
 (defn- start-recv-loop!
   "Starts virtual thread that routes messages from recv-ch."
@@ -340,7 +459,8 @@
                                                                              :email             (or email "dev@example.com")
                                                                              :required_services ["com.roonlabs.transport:2"]
                                                                              :optional_services []
-                                                                             :provided_services ["com.roonlabs.ping:1"]}
+                                                                             :provided_services ["com.roonlabs.ping:1"
+                                                                                                 pairing/service-name]}
         ;; Include token if we have one (from state or config)
         body                                                                (if-let [token (or (:token @state) (:token config))]
                                                                               (assoc body :token token)
@@ -360,16 +480,18 @@
   Used by start! for initial connection and by reconnect-loop! for reconnection.
   Does not emit events - caller is responsible for that."
   [{:keys [config state recv-ch] :as conn}]
-  (let [{:keys [host port]} config
-        url                 (str "ws://" host ":" port "/api")
-        ws                  (ws/connect! url
-                                         {:on-message (fn [_ws data]
-                                                        (put! recv-ch data))
-                                          :on-close   (fn [_ws code reason]
-                                                        (put! recv-ch {:type :closed :code code :reason reason}))
-                                          :on-error   (fn [_ws err]
-                                                        (put! recv-ch {:type :error :error err}))})]
+  (let [{:keys [host port on-core-lost]} config
+        url                              (str "ws://" host ":" port "/api")
+        ws                               (ws/connect! url
+                                                      {:on-message (fn [_ws data]
+                                                                     (put! recv-ch data))
+                                                       :on-close   (fn [_ws code reason]
+                                                                     (put! recv-ch {:type :closed :code code :reason reason}))
+                                                       :on-error   (fn [_ws err]
+                                                                     (put! recv-ch {:type :error :error err}))})]
     (swap! state assoc :websocket ws)
+    ;; Register provided services (pairing)
+    (register-provided-service! conn (pairing/make-service-spec on-core-lost))
     ;; Start message loops
     (start-send-loop! conn)
     (start-recv-loop! conn)

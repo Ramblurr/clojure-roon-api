@@ -216,3 +216,78 @@
 (deftest reconnected-event-schema-exists
   (testing "::reconnected event type is in EventDataRegistry"
     (is (contains? roon/EventDataRegistry ::roon/reconnected))))
+
+;;; Provided services tests
+
+(deftest register-provided-service-adds-to-registry
+  (testing "register-provided-service! adds service to provided-services"
+    (let [c       (conn/make-connection {:host "test"})
+          service {:name    "com.test.service:1"
+                   :methods {"get_value" (fn [_core _body] {:verb :complete :name "Success" :body {"value" 42}})}}]
+      (conn/register-provided-service! c service)
+      (is (some? (conn/get-provided-service c "com.test.service:1"))))))
+
+(deftest handle-provided-service-dispatches-to-method
+  (testing "handle-provided-service! dispatches incoming REQUEST to registered method"
+    (let [calls-atom (atom [])
+          c          (conn/make-connection {:host "test"})
+          service    {:name    "com.test.service:1"
+                      :methods {"get_value"
+                                (fn [core body]
+                                  (swap! calls-atom conj {:core core :body body})
+                                  {:verb :complete :name "Success" :body {"value" 42}})}}]
+      (conn/register-provided-service! c service)
+      ;; Simulate incoming request dispatch (req-id 100)
+      (let [response (conn/handle-provided-service! c "com.test.service:1/get_value" {:request "data"} 100)]
+        ;; Method should have been called
+        (is (= 1 (count @calls-atom)))
+        (is (= {:request "data"} (:body (first @calls-atom))))
+        ;; Response should be returned
+        (is (= :complete (:verb response)))
+        (is (= "Success" (:name response)))
+        (is (= {"value" 42} (:body response)))))))
+
+(deftest handle-provided-service-returns-nil-for-unknown-service
+  (testing "handle-provided-service! returns nil for unregistered service"
+    (let [c (conn/make-connection {:host "test"})]
+      (is (nil? (conn/handle-provided-service! c "com.unknown.service:1/method" nil 100))))))
+
+(deftest handle-provided-service-subscription-start
+  (testing "handle-provided-service! handles subscription start"
+    (let [c       (conn/make-connection {:host "test"})
+          service {:name          "com.test.service:1"
+                   :methods       {}
+                   :subscriptions {"subscribe_value"
+                                   {:start (fn [_core _body]
+                                             {:verb :continue
+                                              :name "Subscribed"
+                                              :body {"value" "initial"}})
+                                    :end   nil}}}]
+      (conn/register-provided-service! c service)
+      (let [response (conn/handle-provided-service! c "com.test.service:1/subscribe_value"
+                                                    {"subscription_key" 123} 100)]
+        (is (= :continue (:verb response)))
+        (is (= "Subscribed" (:name response)))
+        (is (= {"value" "initial"} (:body response)))))))
+
+(deftest provided-service-subscription-tracking
+  (testing "provided service subscriptions are tracked for broadcasts"
+    (let [c       (conn/make-connection {:host "test"})
+          service {:name          "com.test.service:1"
+                   :methods       {}
+                   :subscriptions {"subscribe_value"
+                                   {:start (fn [_core _body]
+                                             {:verb :continue
+                                              :name "Subscribed"
+                                              :body {"value" "initial"}})
+                                    :end   nil}}}]
+      (conn/register-provided-service! c service)
+      ;; Start subscription - use string key like real Roon does (req-id 100)
+      (conn/handle-provided-service! c "com.test.service:1/subscribe_value"
+                                     {"subscription_key" 123} 100)
+      ;; Subscription should be tracked (returns [[key value] ...] pairs)
+      (let [subs (conn/get-provided-subscriptions c "subscribe_value")]
+        (is (seq subs))
+        (is (= 123 (:subscription-key (second (first subs)))))
+        ;; req-id should be stored for broadcasts
+        (is (= 100 (:req-id (second (first subs)))))))))
