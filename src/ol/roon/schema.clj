@@ -178,6 +178,75 @@
    ["queue_time_remaining" {:optional true} number?]
    ["seek_position" {:optional true} number?]])
 
+;;; Browse Service Types
+
+(def ItemHint
+  "Browse item hint. Open enum for future values."
+  :string)
+
+(def ListHint
+  "Browse list hint. Open enum for future values."
+  :string)
+
+(def BrowseAction
+  "Browse response action. Open enum for future values."
+  :string)
+
+(def InputPrompt
+  "Input prompt for user input items."
+  [:map
+   ["prompt" :string]
+   ["action" :string]
+   ["value" {:optional true} [:maybe :string]]
+   ["is_password" {:optional true} boolean?]])
+
+(def BrowseItem
+  "Single item in browse results."
+  [:map
+   ["title" :string]
+   ["subtitle" {:optional true} [:maybe :string]]
+   ["image_key" {:optional true} [:maybe :string]]
+   ["item_key" {:optional true} [:maybe :string]]
+   ["hint" {:optional true} [:maybe ItemHint]]
+   ["input_prompt" {:optional true} [:maybe InputPrompt]]])
+
+(def BrowseList
+  "Browse list metadata."
+  [:map
+   ["title" :string]
+   ["count" :int]
+   ["level" :int]
+   ["subtitle" {:optional true} [:maybe :string]]
+   ["image_key" {:optional true} [:maybe :string]]
+   ["display_offset" {:optional true} [:maybe :int]]
+   ["hint" {:optional true} [:maybe ListHint]]])
+
+(def BrowseResponse
+  "Response from browse method."
+  [:map
+   ["action" BrowseAction]
+   ["item" {:optional true} [:maybe BrowseItem]]
+   ["list" {:optional true} [:maybe BrowseList]]
+   ["message" {:optional true} [:maybe :string]]
+   ["is_error" {:optional true} boolean?]])
+
+(def LoadResponse
+  "Response from load method."
+  [:map
+   ["items" [:vector BrowseItem]]
+   ["offset" :int]
+   ["list" BrowseList]])
+
+;;; Image Service Types
+
+(def ImageScale
+  "Image scaling mode."
+  :string)
+
+(def ImageFormat
+  "Image format."
+  :string)
+
 ;;;; Event Types and Schemas
 
 ;;; Event Payload Schemas

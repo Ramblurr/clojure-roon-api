@@ -92,7 +92,7 @@
           next-id (.get ^java.util.concurrent.atomic.AtomicLong (:req-counter c))
           result  (conn/request! c req-map)]
       ;; Simulate server response arriving
-      (conn/complete-pending! c next-id "Success" {"data" "test-value"})
+      (conn/complete-pending! c next-id "Success" {"data" "test-value"} nil)
       ;; Promise should now be realized
       (is (realized? result))
       (is (= {"data" "test-value"} @result)))))

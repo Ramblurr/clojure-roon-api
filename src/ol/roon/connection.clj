@@ -30,7 +30,10 @@
    :timeout-ms         30000
    :auto-reconnect     true
    :backoff-initial-ms 1000
-   :backoff-max-ms     60000})
+   :backoff-max-ms     60000
+   :required-services  ["com.roonlabs.transport:2"
+                        "com.roonlabs.browse:1"
+                        "com.roonlabs.image:1"]})
 
 ;;; Connection record
 
@@ -52,8 +55,8 @@
   | key                 | required | description                              |
   |---------------------|----------|------------------------------------------|
   | :host               | yes      | Roon Core IP or hostname                 |
-  | :extension-id       | no       | Unique extension identifier              |
-  | :display-name       | no       | Human-readable name                      |
+  | :extension-id       | yes      | Unique extension identifier              |
+  | :display-name       | yes      | Human-readable name                      |
   | :display-version    | no       | Version string (default 1.0.0)           |
   | :publisher          | no       | Publisher name                           |
   | :email              | no       | Contact email                            |
@@ -64,7 +67,8 @@
   | :backoff-initial-ms | no       | Initial backoff (default 1000)           |
   | :backoff-max-ms     | no       | Max backoff (default 60000)              |
   | :on-core-lost       | no       | Callback fn(core-id) when pairing changes|
-  | :provided-services  | no       | Vector of service instances to register  |"
+  | :provided-services  | no       | Vector of service instances to register  |
+  | :required-services  | no       | Services to consume (default: transport, browse, image) |"
   [config]
   (->Connection
    (merge default-config config)
@@ -345,11 +349,15 @@
     nil))
 
 (defn complete-pending!
-  "Delivers response to pending request promise and removes it."
-  [conn req-id name body]
+  "Delivers response to pending request promise and removes it.
+
+  For binary responses (bytes), wraps in {:content-type ... :data ...}."
+  [conn req-id name body content-type]
   (when-let [p (get-pending conn req-id)]
     (if (#{"Success" "Registered"} name)
-      (deliver p body)
+      (if (bytes? body)
+        (deliver p {:content-type content-type :data body})
+        (deliver p body))
       (deliver p (ex-info "Request failed" {:name name :body body})))
     (remove-pending! conn req-id)))
 
@@ -433,13 +441,13 @@
 
            ;; MOO message
            :else
-           (when-let [{:keys [verb request-id name body]} (moo/parse-message msg)]
+           (when-let [{:keys [verb request-id name body content-type]} (moo/parse-message msg)]
              (case verb
-               :complete (complete-pending! conn request-id name body)
+               :complete (complete-pending! conn request-id name body content-type)
                :continue (do
                            ;; "Registered" completes the registration request
                            (when (= name "Registered")
-                             (complete-pending! conn request-id name body))
+                             (complete-pending! conn request-id name body content-type))
                            ;; Also dispatch to any subscriptions
                            (dispatch-subscription! conn request-id name body))
                :request  (handle-incoming-request! conn request-id name body)
@@ -496,17 +504,17 @@
 
   Dynamically builds provided_services from what's registered."
   [{:keys [config state] :as conn}]
-  (let [{:keys [extension-id display-name display-version publisher email]} config
+  (let [{:keys [extension-id display-name display-version publisher email required-services]} config
         ;; Build provided_services from registered services
-        provided-svc-names                                                  (vec (keys (:provided-services @state)))
-        body                                                                {:extension_id      (or extension-id "com.clojure.roon-api")
-                                                                             :display_name      (or display-name "Clojure Roon API")
-                                                                             :display_version   (or display-version "1.0.0")
-                                                                             :publisher         (or publisher "")
-                                                                             :email             (or email "dev@example.com")
-                                                                             :required_services ["com.roonlabs.transport:2"]
-                                                                             :optional_services []
-                                                                             :provided_services provided-svc-names}
+        provided-svc-names (vec (keys (:provided-services @state)))
+        body               {:extension_id      extension-id
+                            :display_name      display-name
+                            :display_version   (or display-version "1.0.0")
+                            :publisher         (or publisher "")
+                            :email             (or email "")
+                            :required_services required-services
+                            :optional_services []
+                            :provided_services provided-svc-names}
         ;; Include token if we have one (from state or config)
         body                                                                (if-let [token (or (:token @state) (:token config))]
                                                                               (assoc body :token token)

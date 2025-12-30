@@ -102,7 +102,7 @@
           p      (promise)
           req-id 42]
       (conn/add-pending! c req-id p)
-      (conn/complete-pending! c req-id "Success" {:data "test"})
+      (conn/complete-pending! c req-id "Success" {:data "test"} nil)
       ;; Promise should be delivered with body
       (is (realized? p))
       (is (= {:data "test"} @p)))))
@@ -113,8 +113,24 @@
           p      (promise)
           req-id 42]
       (conn/add-pending! c req-id p)
-      (conn/complete-pending! c req-id "Success" nil)
+      (conn/complete-pending! c req-id "Success" nil nil)
       (is (nil? (conn/get-pending c req-id))))))
+
+(deftest complete-pending-wraps-binary-response
+  (testing "binary response with content-type returns wrapped map"
+    (let [c            (conn/make-connection {:host "test"})
+          p            (promise)
+          req-id       42
+          binary-data  (byte-array [0x89 0x50 0x4E 0x47])  ;; PNG magic bytes
+          content-type "image/png"]
+      (conn/add-pending! c req-id p)
+      (conn/complete-pending! c req-id "Success" binary-data content-type)
+      (is (realized? p))
+      (let [result @p]
+        (is (map? result))
+        (is (= content-type (:content-type result)))
+        (is (bytes? (:data result)))
+        (is (= (seq binary-data) (seq (:data result))))))))
 
 (deftest dispatch-subscription-delivers-to-events-channel
   (testing "CONTINUE delivers event to unified events channel"
