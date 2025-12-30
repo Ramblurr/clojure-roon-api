@@ -17,6 +17,7 @@
             [ol.roon.moo :as moo]
             [ol.roon.schema :as roon]
             [ol.roon.services.pairing :as pairing]
+            [ol.roon.services.ping :as ping]
             [ol.roon.websocket :as ws])
   (:import [java.util.concurrent.atomic AtomicLong]))
 
@@ -34,14 +35,15 @@
 ;;; Connection record
 
 (defrecord Connection
-           [config            ;; immutable config map
-            state             ;; atom for mutable state
-            req-counter       ;; AtomicLong for request IDs
-            sub-counter       ;; AtomicLong for subscription keys
-            events-ch         ;; channel for all events (user-facing)
-            send-ch           ;; channel for outgoing messages
-            recv-ch           ;; channel for incoming messages
-            reconnecting-atom]) ;; atom to guard against multiple reconnect loops
+           [config             ;; immutable config map
+            state              ;; atom for mutable state
+            req-counter        ;; AtomicLong for request IDs
+            sub-counter        ;; AtomicLong for subscription keys
+            events-ch          ;; channel for all events (user-facing)
+            send-ch            ;; channel for outgoing messages
+            recv-ch            ;; channel for incoming messages
+            reconnecting-atom  ;; atom to guard against multiple reconnect loops
+            service-instances]) ;; atom for user-provided service instances
 
 (defn make-connection
   "Creates a new Connection (not yet connected).
@@ -61,7 +63,8 @@
   | :auto-reconnect     | no       | Auto-reconnect (default true)            |
   | :backoff-initial-ms | no       | Initial backoff (default 1000)           |
   | :backoff-max-ms     | no       | Max backoff (default 60000)              |
-  | :on-core-lost       | no       | Callback fn(core-id) when pairing changes|"
+  | :on-core-lost       | no       | Callback fn(core-id) when pairing changes|
+  | :provided-services  | no       | Vector of service instances to register  |"
   [config]
   (->Connection
    (merge default-config config)
@@ -79,7 +82,8 @@
    (chan (a/sliding-buffer 32))   ;; events-ch
    (chan 64)                       ;; send-ch
    (chan 64)                       ;; recv-ch
-   (atom false)))                  ;; reconnecting-atom
+   (atom false)                    ;; reconnecting-atom
+   (atom {})))
 
 ;;; ID generation
 
@@ -187,6 +191,42 @@
   [{:keys [state]} subscription-key]
   (swap! state update :provided-subscriptions dissoc subscription-key))
 
+;;; Service instance management (for status/settings services)
+
+(defn register-service-instance!
+  "Registers a service instance (the full user-provided service map).
+
+  This is separate from register-provided-service! which registers just the spec.
+  Service instances contain additional state/functions needed by the service.
+
+  service - map with :name, :spec, and service-specific fields"
+  [{:keys [service-instances]} service]
+  (swap! service-instances assoc (:name service) service))
+
+(defn get-service-instance
+  "Gets a registered service instance by name.
+
+  Returns the full service instance map, not just the spec."
+  [{:keys [service-instances]} service-name]
+  (get @service-instances service-name))
+
+;;; Public broadcast function
+
+(defn broadcast!
+  "Broadcasts a message to all subscribers of a subscription name.
+
+  Used by provided services to notify subscribers of changes.
+  Response name is always 'Changed'.
+
+  Arguments:
+  - conn: Connection
+  - sub-name: Subscription name (e.g., \"subscribe_status\")
+  - body: Message body to broadcast"
+  [{:keys [send-ch] :as conn} sub-name body]
+  (doseq [[_ {:keys [req-id]}] (get-provided-subscriptions conn sub-name)]
+    (let [msg (moo/encode-response :continue "Changed" req-id body)]
+      (put! send-ch msg))))
+
 (defn- parse-service-uri
   "Parses a service URI into [service-name method-name].
 
@@ -290,6 +330,17 @@
       ::roon/queue-subscribed
       ::roon/queue-changed)
 
+    ;; Provided service subscriptions (for completeness)
+    "status"
+    (if (= response-name "Subscribed")
+      ::roon/status-subscribed
+      ::roon/status-changed)
+
+    "settings"
+    (if (= response-name "Subscribed")
+      ::roon/settings-subscribed
+      ::roon/settings-changed)
+
     ;; Unknown subscription - use nil to skip
     nil))
 
@@ -339,24 +390,16 @@
 (defn- handle-incoming-request!
   "Handles incoming REQUEST from Roon (e.g., ping, provided services)."
   [{:keys [send-ch] :as conn} req-id uri body]
-  (cond
-    ;; Built-in ping handler
-    (= uri "com.roonlabs.ping:1/ping")
-    (let [response (moo/encode-response :complete "Success" req-id nil)]
-      (put! send-ch response))
-
-    ;; Try provided services
-    :else
-    (if-let [result (handle-provided-service! conn uri body req-id)]
-      (do
-        ;; Send response to requester
-        (let [response (moo/encode-response (:verb result) (:name result) req-id (:body result))]
-          (put! send-ch response))
-        ;; Send broadcast to all subscribers if specified
-        (when-let [broadcast-sub (:broadcast result)]
-          (send-broadcast! conn broadcast-sub (:name result) (:body result))))
-      ;; Unknown request
-      (println "[WARN] Unhandled incoming request:" uri))))
+  (if-let [result (handle-provided-service! conn uri body req-id)]
+    (do
+      ;; Send response to requester
+      (let [response (moo/encode-response (:verb result) (:name result) req-id (:body result))]
+        (put! send-ch response))
+      ;; Send broadcast to all subscribers if specified (always use "Changed" per Roon protocol)
+      (when-let [broadcast-sub (:broadcast result)]
+        (send-broadcast! conn broadcast-sub "Changed" (:body result))))
+    ;; Unknown request
+    (println "[WARN] Unhandled incoming request:" uri)))
 
 (defn- start-recv-loop!
   "Starts virtual thread that routes messages from recv-ch."
@@ -449,9 +492,13 @@
 ;;; Connection lifecycle
 
 (defn- register!
-  "Registers extension with Roon Core. Returns response body."
+  "Registers extension with Roon Core. Returns response body.
+
+  Dynamically builds provided_services from what's registered."
   [{:keys [config state] :as conn}]
   (let [{:keys [extension-id display-name display-version publisher email]} config
+        ;; Build provided_services from registered services
+        provided-svc-names                                                  (vec (keys (:provided-services @state)))
         body                                                                {:extension_id      (or extension-id "com.clojure.roon-api")
                                                                              :display_name      (or display-name "Clojure Roon API")
                                                                              :display_version   (or display-version "1.0.0")
@@ -459,8 +506,7 @@
                                                                              :email             (or email "dev@example.com")
                                                                              :required_services ["com.roonlabs.transport:2"]
                                                                              :optional_services []
-                                                                             :provided_services ["com.roonlabs.ping:1"
-                                                                                                 pairing/service-name]}
+                                                                             :provided_services provided-svc-names}
         ;; Include token if we have one (from state or config)
         body                                                                (if-let [token (or (:token @state) (:token config))]
                                                                               (assoc body :token token)
@@ -490,8 +536,13 @@
                                                        :on-error   (fn [_ws err]
                                                                      (put! recv-ch {:type :error :error err}))})]
     (swap! state assoc :websocket ws)
-    ;; Register provided services (pairing)
+    ;; Register built-in provided services
+    (register-provided-service! conn (ping/make-service-spec))
     (register-provided-service! conn (pairing/make-service-spec on-core-lost))
+    ;; Register user-provided services from config
+    (doseq [service (:provided-services config)]
+      (register-service-instance! conn service)
+      (register-provided-service! conn (:spec service)))
     ;; Start message loops
     (start-send-loop! conn)
     (start-recv-loop! conn)

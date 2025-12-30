@@ -271,32 +271,58 @@
   [:map
    ["paired_core_id" [:maybe :string]]])
 
+;;; Status/Settings Event Payloads
+
+(def StatusSubscribedData
+  "Payload for ::status-subscribed event."
+  [:map
+   ["message" :string]
+   ["is_error" boolean?]])
+
+(def StatusChangedData
+  "Payload for ::status-changed event."
+  StatusSubscribedData)
+
+(def SettingsSubscribedData
+  "Payload for ::settings-subscribed event."
+  [:map
+   ["settings" :any]])
+
+(def SettingsChangedData
+  "Payload for ::settings-changed event."
+  SettingsSubscribedData)
+
 ;;; Event Registry
 
 (def EventDataRegistry
   "Maps event type keywords to their payload Malli schemas.
 
   Use for validation or documentation generation."
-  {::registered         RegisteredData
-   ::disconnected       DisconnectedData
-   ::reconnecting       ReconnectingData
-   ::reconnected        ReconnectedData
-   ::zones-subscribed   ZonesSubscribedData
-   ::zones-changed      ZonesChangedData
-   ::zones-added        ZonesAddedData
-   ::zones-removed      ZonesRemovedData
-   ::zones-seek-changed ZonesSeekChangedData
-   ::outputs-subscribed OutputsSubscribedData
-   ::outputs-changed    OutputsChangedData
-   ::outputs-added      OutputsAddedData
-   ::outputs-removed    OutputsRemovedData
-   ::queue-subscribed   QueueSubscribedData
-   ::queue-changed      QueueChangedData
+  {::registered          RegisteredData
+   ::disconnected        DisconnectedData
+   ::reconnecting        ReconnectingData
+   ::reconnected         ReconnectedData
+   ::zones-subscribed    ZonesSubscribedData
+   ::zones-changed       ZonesChangedData
+   ::zones-added         ZonesAddedData
+   ::zones-removed       ZonesRemovedData
+   ::zones-seek-changed  ZonesSeekChangedData
+   ::outputs-subscribed  OutputsSubscribedData
+   ::outputs-changed     OutputsChangedData
+   ::outputs-added       OutputsAddedData
+   ::outputs-removed     OutputsRemovedData
+   ::queue-subscribed    QueueSubscribedData
+   ::queue-changed       QueueChangedData
    ;; Pairing events
-   ::core-found         CoreFoundData
-   ::core-lost          CoreLostData
-   ::core-paired        CorePairedData
-   ::pairing-changed    PairingChangedData})
+   ::core-found          CoreFoundData
+   ::core-lost           CoreLostData
+   ::core-paired         CorePairedData
+   ::pairing-changed     PairingChangedData
+   ;; Status/Settings events
+   ::status-subscribed   StatusSubscribedData
+   ::status-changed      StatusChangedData
+   ::settings-subscribed SettingsSubscribedData
+   ::settings-changed    SettingsChangedData})
 
 (def EventType
   "Enum of all valid event types. Derived from EventDataRegistry."
@@ -307,3 +333,81 @@
   [:map
    [::event EventType]
    [::data :any]])
+
+;;;; Settings Widget Types
+
+(def DropdownValue
+  "Single option in a dropdown."
+  [:map
+   ["title" :string]
+   ["value" :any]])
+
+(def WidgetDropdown
+  "Dropdown selection widget."
+  [:map
+   ["type" [:= "dropdown"]]
+   ["title" :string]
+   ["subtitle" {:optional true} [:maybe :string]]
+   ["values" [:vector DropdownValue]]
+   ["setting" :string]
+   ["error" {:optional true} [:maybe :string]]])
+
+(def WidgetInteger
+  "Integer input widget with min/max bounds."
+  [:map
+   ["type" [:= "integer"]]
+   ["title" :string]
+   ["subtitle" {:optional true} [:maybe :string]]
+   ["min" [:or :int :string]]
+   ["max" [:or :int :string]]
+   ["setting" :string]
+   ["error" {:optional true} [:maybe :string]]])
+
+(def WidgetString
+  "String input widget."
+  [:map
+   ["type" [:= "string"]]
+   ["title" :string]
+   ["subtitle" {:optional true} [:maybe :string]]
+   ["maxlength" {:optional true} :int]
+   ["setting" :string]
+   ["error" {:optional true} [:maybe :string]]])
+
+(def WidgetLabel
+  "Label widget for display-only text."
+  [:map
+   ["type" [:= "label"]]
+   ["title" :string]])
+
+(def WidgetZone
+  "Zone picker widget."
+  [:map
+   ["type" [:= "zone"]]
+   ["title" :string]
+   ["setting" :string]])
+
+(def WidgetGroup
+  "Group container for nested widgets."
+  [:map
+   ["type" [:= "group"]]
+   ["title" :string]
+   ["items" [:vector :any]]])
+
+(def Widget
+  "Union of all widget types. Buttons not included - handled via button_pressed method."
+  [:or WidgetDropdown WidgetInteger WidgetString WidgetLabel WidgetZone WidgetGroup])
+
+(def SettingsLayout
+  "Complete settings layout with values and widgets."
+  [:map
+   ["values" [:map-of :string :any]]
+   ["layout" [:vector Widget]]
+   ["has_error" boolean?]])
+
+;;;; Status Types
+
+(def StatusMessage
+  "Status service state."
+  [:map
+   ["message" :string]
+   ["is_error" boolean?]])

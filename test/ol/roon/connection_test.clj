@@ -3,6 +3,7 @@
   (:require [clojure.test :refer [deftest is testing]]
             [clojure.core.async :refer [timeout alt!!]]
             [ol.roon.connection :as conn]
+            [ol.roon.moo :as moo]
             [ol.roon.schema :as roon]))
 
 ;;; Request ID generation
@@ -291,3 +292,76 @@
         (is (= 123 (:subscription-key (second (first subs)))))
         ;; req-id should be stored for broadcasts
         (is (= 100 (:req-id (second (first subs)))))))))
+
+;;; Provided services config tests (Task 5)
+
+(deftest provided-services-config-accepted
+  (testing "connection accepts :provided-services config key"
+    (let [svc {:name  "com.test.service:1"
+               :spec  {:name "com.test.service:1" :methods {}}
+               :extra "data"}
+          c   (conn/make-connection {:host              "test"
+                                     :provided-services [svc]})]
+      (is (= [svc] (get-in c [:config :provided-services]))))))
+
+(deftest get-service-instance-returns-full-instance
+  (testing "get-service-instance returns the full service instance (not just spec)"
+    (let [my-fn (fn [] "hello")
+          svc   {:name    "com.test.status:1"
+                 :spec    {:name "com.test.status:1" :methods {}}
+                 :set-fn! my-fn}
+          c     (conn/make-connection {:host "test"})]
+      (conn/register-service-instance! c svc)
+      (let [instance (conn/get-service-instance c "com.test.status:1")]
+        (is (some? instance))
+        (is (= my-fn (:set-fn! instance)))
+        (is (= "com.test.status:1" (:name instance)))))))
+
+(deftest broadcast-sends-to-all-subscribers
+  (testing "broadcast! sends CONTINUE message to all subscribers"
+    (let [c       (conn/make-connection {:host "test"})
+          service {:name          "com.test.service:1"
+                   :methods       {}
+                   :subscriptions {"subscribe_value"
+                                   {:start (fn [_core _body]
+                                             {:verb :continue
+                                              :name "Subscribed"
+                                              :body {}})
+                                    :end   nil}}}]
+      (conn/register-provided-service! c service)
+      ;; Create two subscribers
+      (conn/handle-provided-service! c "com.test.service:1/subscribe_value"
+                                     {"subscription_key" 1} 100)
+      (conn/handle-provided-service! c "com.test.service:1/subscribe_value"
+                                     {"subscription_key" 2} 101)
+      ;; Verify both are tracked
+      (let [subs (conn/get-provided-subscriptions c "subscribe_value")]
+        (is (= 2 (count subs)))))))
+
+(deftest broadcast-uses-changed-response-name
+  (testing "broadcast! uses 'Changed' as the response name per Roon protocol"
+    (let [c       (conn/make-connection {:host "test"})
+          send-ch (:send-ch c)
+          service {:name          "com.test.service:1"
+                   :methods       {}
+                   :subscriptions {"subscribe_value"
+                                   {:start (fn [_core _body]
+                                             {:verb :continue
+                                              :name "Subscribed"
+                                              :body {}})
+                                    :end   nil}}}]
+      (conn/register-provided-service! c service)
+      ;; Create a subscriber
+      (conn/handle-provided-service! c "com.test.service:1/subscribe_value"
+                                     {"subscription_key" 1} 100)
+      ;; Send a broadcast
+      (conn/broadcast! c "subscribe_value" {"data" "test"})
+      ;; Read from send-ch and parse the message
+      (let [[msg ch] (alt!!
+                       send-ch ([v] [v :msg])
+                       (timeout 100) ([_] [nil :timeout]))]
+        (is (= :msg ch) "broadcast message should be on send-ch")
+        (when msg
+          (let [parsed (moo/parse-message msg)]
+            (is (= :continue (:verb parsed)) "broadcast should be CONTINUE")
+            (is (= "Changed" (:name parsed)) "broadcast response name must be 'Changed'")))))))

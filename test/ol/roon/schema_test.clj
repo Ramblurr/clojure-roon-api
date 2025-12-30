@@ -309,3 +309,109 @@
   (testing "QueueChangedData schema validates fixture"
     (let [response (load-json-fixture "bodies/queue_change_response.json")]
       (is (valid? schema/QueueChangedData response)))))
+
+;;; Widget Schema Tests (from plan 004)
+
+(deftest widget-dropdown-schema-test
+  (testing "validates dropdown widget"
+    (is (valid? schema/WidgetDropdown
+                {"type"    "dropdown"
+                 "title"   "Choice"
+                 "values"  [{"title" "A" "value" "a"}]
+                 "setting" "choice"})))
+  (testing "validates dropdown with optional fields"
+    (is (valid? schema/WidgetDropdown
+                {"type"     "dropdown"
+                 "title"    "Choice"
+                 "subtitle" "Pick one"
+                 "values"   [{"title" "A" "value" "a"} {"title" "B" "value" "b"}]
+                 "setting"  "choice"
+                 "error"    "Invalid selection"}))))
+
+(deftest widget-integer-schema-test
+  (testing "validates integer widget"
+    (is (valid? schema/WidgetInteger
+                {"type"    "integer"
+                 "title"   "Volume"
+                 "min"     0
+                 "max"     100
+                 "setting" "volume"})))
+  (testing "validates integer widget with error"
+    (is (valid? schema/WidgetInteger
+                {"type"    "integer"
+                 "title"   "Volume"
+                 "min"     0
+                 "max"     100
+                 "setting" "volume"
+                 "error"   "Out of range"})))
+  (testing "validates integer with string min/max"
+    (is (valid? schema/WidgetInteger
+                {"type"    "integer"
+                 "title"   "Volume"
+                 "min"     "0"
+                 "max"     "100"
+                 "setting" "volume"}))))
+
+(deftest widget-string-schema-test
+  (testing "validates string widget"
+    (is (valid? schema/WidgetString
+                {"type"    "string"
+                 "title"   "Name"
+                 "setting" "name"})))
+  (testing "validates string widget with maxlength"
+    (is (valid? schema/WidgetString
+                {"type"      "string"
+                 "title"     "Name"
+                 "maxlength" 50
+                 "setting"   "name"}))))
+
+(deftest widget-label-schema-test
+  (testing "validates label widget"
+    (is (valid? schema/WidgetLabel
+                {"type"  "label"
+                 "title" "Info text here"}))))
+
+(deftest widget-zone-schema-test
+  (testing "validates zone widget"
+    (is (valid? schema/WidgetZone
+                {"type"    "zone"
+                 "title"   "Select Zone"
+                 "setting" "zone"}))))
+
+(deftest widget-group-schema-test
+  (testing "validates group widget"
+    (is (valid? schema/WidgetGroup
+                {"type"  "group"
+                 "title" "Advanced Settings"
+                 "items" [{"type" "string" "title" "Name" "setting" "name"}]}))))
+
+(deftest settings-layout-schema-test
+  (testing "validates settings layout"
+    (is (valid? schema/SettingsLayout
+                {"values"    {"volume" 50}
+                 "layout"    [{"type"    "integer"
+                               "title"   "Volume"
+                               "min"     0
+                               "max"     100
+                               "setting" "volume"}]
+                 "has_error" false})))
+  (testing "validates settings layout with error"
+    (is (valid? schema/SettingsLayout
+                {"values"    {"volume" 150}
+                 "layout"    [{"type"    "integer"
+                               "title"   "Volume"
+                               "min"     0
+                               "max"     100
+                               "setting" "volume"
+                               "error"   "Volume must be 0-100"}]
+                 "has_error" true}))))
+
+(deftest status-message-schema-test
+  (testing "validates status message"
+    (is (valid? schema/StatusMessage
+                {"message"  "Ready"
+                 "is_error" false})))
+  (testing "validates error status"
+    (is (valid? schema/StatusMessage
+                {"message"  "Connection failed"
+                 "is_error" true}))))
