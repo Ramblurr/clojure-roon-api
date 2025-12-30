@@ -13,6 +13,7 @@
       ...
     }:
     devenv.lib.mkFlake ./. {
+      nixpkgs.config.allowUnfree = true;
       withOverlays = [
         devshell.overlays.default
         devenv.overlays.default
@@ -26,10 +27,16 @@
           ];
           # https://numtide.github.io/devshell
           commands = [
-            { package = pkgs.cfssl; }
-            { package = pkgs.pebble; }
+            { package = pkgs.roon-server; }
           ];
-
+          packages = [
+            (pkgs.python311.withPackages (
+              ps: with ps; [
+                leveldb
+                plyvel
+              ]
+            ))
+          ];
         };
     };
 }

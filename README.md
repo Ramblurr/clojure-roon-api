@@ -1,6 +1,6 @@
 # roon-api
 
-A REST API, MCP and Clojure API bridge for Roon (www.roonlabs.com).
+A Clojure port of the RoonLabs node-roon-api, for ROon (www.roonlabs.com).
 
 Built for LLM usage, Home Assistant and other home automation systems.
 

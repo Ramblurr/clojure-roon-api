@@ -1,0 +1,113 @@
+(ns ol.roon.api
+  "High-level API entrypoints for Roon integration.
+
+  Example usage:
+
+  ```clojure
+  (require '[ol.roon.api :as roon]
+           '[ol.roon.schema :as schema]
+           '[ol.roon.services.transport :as transport]
+           '[clojure.core.async :refer [<! go-loop]])
+
+  ;; Connect
+  (def conn (roon/connect!
+              {:host \"10.9.4.17\"
+               :extension-id \"com.example.myapp\"
+               :display-name \"My Roon App\"}))
+
+  ;; Unified event loop - receives all events
+  (go-loop []
+    (when-let [event (<! (:events conn))]
+      (case (::schema/event event)
+        ::schema/registered
+        (println \"Connected to\" (::schema/data event))
+
+        ::schema/disconnected
+        (println \"Disconnected:\" (:reason (::schema/data event)))
+
+        ::schema/zones-subscribed
+        (println \"Initial zones:\" (get (::schema/data event) \"zones\"))
+
+        ::schema/zones-changed
+        (println \"Zones changed:\" (::schema/data event))
+
+        ;; Handle other events...
+        nil)
+      (recur)))
+
+  ;; Subscribe to zone changes (events go to :events channel)
+  (transport/subscribe-zones! (:conn conn))
+
+  ;; Get zones (returns promise)
+  (let [result @(transport/get-zones! (:conn conn))]
+    (println \"Zones:\" (get result \"zones\")))
+
+  ;; Control playback (returns promise)
+  @(transport/control! (:conn conn) zone-id :play)
+
+  ;; Data-driven API - build request, then send
+  (let [req (transport/change-volume \"output-1\" :absolute 50)]
+    @(ol.roon.connection/request! (:conn conn) req))
+
+  ;; Disconnect
+  (roon/disconnect! conn)
+  ```"
+  (:require [ol.roon.connection :as conn]))
+
+(set! *warn-on-reflection* true)
+
+(defn connect!
+  "Connects to Roon Core and registers extension. Blocking.
+
+  Returns {:conn Connection :events <channel>}.
+
+  Events channel receives all events with shape:
+    {::roon/event ::roon/registered ::roon/data {...}}
+    {::roon/event ::roon/disconnected ::roon/data {:reason \"...\"}}
+    {::roon/event ::roon/zones-changed ::roon/data {...}}
+
+  See `ol.roon.schema/EventDataRegistry` for all event types and payloads.
+
+  Config map:
+  | key               | required | description                    |
+  |-------------------|----------|--------------------------------|
+  | :host             | yes      | Roon Core IP or hostname       |
+  | :extension-id     | yes      | Unique extension identifier    |
+  | :display-name     | yes      | Human-readable name            |
+  | :display-version  | no       | Version string (default 1.0.0) |
+  | :publisher        | no       | Publisher name                 |
+  | :email            | no       | Contact email                  |
+  | :token            | no       | Saved token for re-auth        |
+  | :port             | no       | WebSocket port (default 9330)  |
+  | :timeout-ms       | no       | Request timeout (default 30000)|
+  | :auto-reconnect   | no       | Auto-reconnect (default true)  |"
+  [config]
+  (let [connection (conn/make-connection config)]
+    (conn/start! connection)
+    {:conn   connection
+     :events (:events-ch connection)}))
+
+(defn disconnect!
+  "Disconnects from Roon Core."
+  [{:keys [conn]}]
+  (conn/disconnect! conn))
+
+(defn connected?
+  "Returns true if connected to Roon Core."
+  [{:keys [conn]}]
+  (conn/connected? conn))
+
+(defn save-config
+  "Extracts token and core-id for persistence.
+
+  Returns a map that can be serialized and passed to connect!
+  on next run to skip re-authorization."
+  [{:keys [conn]}]
+  (let [{:keys [core-info token]} @(:state conn)]
+    {:token   token
+     :core-id (get core-info "core_id")}))
+
+(defn load-config
+  "Loads saved config from EDN file."
+  [path]
+  (read-string (slurp path)))

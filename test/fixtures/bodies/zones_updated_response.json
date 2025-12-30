@@ -1,0 +1,58 @@
+{
+  "zones_changed" : [ {
+    "zone_id" : "1601e822438f0745214bb93d020e0b428708",
+    "display_name" : "Bongos",
+    "outputs" : [ {
+      "output_id" : "1701e822438f0745214bb93d020e0b428708",
+      "zone_id" : "1601e822438f0745214bb93d020e0b428708",
+      "can_group_with_output_ids" : [ "17014e4e494c2600220f366c01475414013f", "170185aa697e2355f8953b1f4a2952d75c5d", "1701e822438f0745214bb93d020e0b428708", "17016a7061d5ae13c35e4aca31b0c868d878", "1701814943db51605942a87582477057fb75" ],
+      "display_name" : "Bongos",
+      "source_controls" : [ {
+        "control_key" : "1",
+        "display_name" : "Bongos",
+        "supports_standby" : false,
+        "status" : "indeterminate"
+      } ]
+    } ],
+    "state" : "playing",
+    "is_next_allowed" : true,
+    "is_previous_allowed" : true,
+    "is_pause_allowed" : true,
+    "is_play_allowed" : false,
+    "is_seek_allowed" : true,
+    "queue_items_remaining" : 7,
+    "queue_time_remaining" : 2067,
+    "settings" : {
+      "loop" : "disabled",
+      "shuffle" : false,
+      "auto_radio" : true
+    },
+    "now_playing" : {
+      "seek_position" : 0,
+      "length" : 331,
+      "one_line" : {
+        "line1" : "Animal (Remastered 2003) - Vinnie Vincent"
+      },
+      "two_line" : {
+        "line1" : "Animal (Remastered 2003)",
+        "line2" : "Vinnie Vincent"
+      },
+      "three_line" : {
+        "line1" : "Animal (Remastered 2003)",
+        "line2" : "Vinnie Vincent",
+        "line3" : "Vinnie Vincent Invasion"
+      },
+      "image_key" : "f9814b3cd14f51e6fceeb656aeb2bfd0",
+      "artist_image_keys" : [ "f378c129ad24e18b3a6dd3f192522308" ]
+    }
+  } ],
+  "zones_seek_changed" : [ {
+    "zone_id" : "16013065cbe8e3ecaf4c8c47d851e7641867",
+    "queue_time_remaining" : 1678351,
+    "seek_position" : 323
+  }, {
+    "zone_id" : "1601e822438f0745214bb93d020e0b428708",
+    "queue_time_remaining" : 2067,
+    "seek_position" : 0
+  } ]
+}

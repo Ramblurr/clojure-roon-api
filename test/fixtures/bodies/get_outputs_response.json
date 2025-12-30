@@ -1,0 +1,270 @@
+{
+  "outputs": [
+    {
+      "output_id": "170163df90e742c33b0b2404ae5d08cb8908",
+      "zone_id": "160163df90e742c33b0b2404ae5d08cb8908",
+      "can_group_with_output_ids": [
+        "1701367641070e02f66dee7898248238f265",
+        "1701c2d7d425f3b6a1bdc302ac12732607d3",
+        "17010e07332ef639cc7e2560953d8e108390",
+        "17010fa0e49205ea9e6db24aca08d27137e6",
+        "170163df90e742c33b0b2404ae5d08cb8908"
+      ],
+      "display_name": "Foo",
+      "source_controls": [
+        {
+          "control_key": "1",
+          "display_name": "Foo",
+          "supports_standby": false,
+          "status": "indeterminate"
+        }
+      ]
+    },
+    {
+      "output_id": "1701367641070e02f66dee7898248238f265",
+      "zone_id": "1601367641070e02f66dee7898248238f265",
+      "can_group_with_output_ids": [
+        "1701367641070e02f66dee7898248238f265",
+        "1701c2d7d425f3b6a1bdc302ac12732607d3",
+        "17010e07332ef639cc7e2560953d8e108390",
+        "17010fa0e49205ea9e6db24aca08d27137e6",
+        "170163df90e742c33b0b2404ae5d08cb8908"
+      ],
+      "display_name": "Bar",
+      "volume": {
+        "type": "number",
+        "min": 0,
+        "max": 100,
+        "value": 0,
+        "step": 1,
+        "is_muted": false,
+        "hard_limit_min": 0,
+        "hard_limit_max": 100,
+        "soft_limit": 100
+      },
+      "source_controls": [
+        {
+          "control_key": "1",
+          "display_name": "Bar",
+          "supports_standby": false,
+          "status": "indeterminate"
+        }
+      ]
+    },
+    {
+      "output_id": "17010e07332ef639cc7e2560953d8e108390",
+      "zone_id": "16010e07332ef639cc7e2560953d8e108390",
+      "can_group_with_output_ids": [
+        "1701367641070e02f66dee7898248238f265",
+        "1701c2d7d425f3b6a1bdc302ac12732607d3",
+        "17010e07332ef639cc7e2560953d8e108390",
+        "17010fa0e49205ea9e6db24aca08d27137e6",
+        "170163df90e742c33b0b2404ae5d08cb8908"
+      ],
+      "display_name": "Baz",
+      "volume": {
+        "type": "number",
+        "min": 0,
+        "max": 100,
+        "value": 7,
+        "step": 1,
+        "is_muted": false,
+        "hard_limit_min": 0,
+        "hard_limit_max": 100,
+        "soft_limit": 100
+      },
+      "source_controls": [
+        {
+          "control_key": "1",
+          "display_name": "Baz",
+          "supports_standby": false,
+          "status": "indeterminate"
+        }
+      ]
+    },
+    {
+      "output_id": "17010fa0e49205ea9e6db24aca08d27137e6",
+      "zone_id": "16010fa0e49205ea9e6db24aca08d27137e6",
+      "can_group_with_output_ids": [
+        "1701367641070e02f66dee7898248238f265",
+        "1701c2d7d425f3b6a1bdc302ac12732607d3",
+        "17010e07332ef639cc7e2560953d8e108390",
+        "17010fa0e49205ea9e6db24aca08d27137e6",
+        "170163df90e742c33b0b2404ae5d08cb8908"
+      ],
+      "display_name": "Buzz",
+      "volume": {
+        "type": "number",
+        "min": 0,
+        "max": 100,
+        "value": 10,
+        "step": 1,
+        "is_muted": false,
+        "hard_limit_min": 0,
+        "hard_limit_max": 100,
+        "soft_limit": 100
+      },
+      "source_controls": [
+        {
+          "control_key": "1",
+          "display_name": "Buzz",
+          "supports_standby": false,
+          "status": "indeterminate"
+        }
+      ]
+    },
+    {
+      "output_id": "1701c2d7d425f3b6a1bdc302ac12732607d3",
+      "zone_id": "1601c2d7d425f3b6a1bdc302ac12732607d3",
+      "can_group_with_output_ids": [
+        "1701367641070e02f66dee7898248238f265",
+        "1701c2d7d425f3b6a1bdc302ac12732607d3",
+        "17010e07332ef639cc7e2560953d8e108390",
+        "17010fa0e49205ea9e6db24aca08d27137e6",
+        "170163df90e742c33b0b2404ae5d08cb8908"
+      ],
+      "display_name": "Fuzz",
+      "volume": {
+        "type": "number",
+        "min": 0,
+        "max": 100,
+        "value": 17,
+        "step": 1,
+        "is_muted": false,
+        "hard_limit_min": 0,
+        "hard_limit_max": 100,
+        "soft_limit": 100
+      },
+      "source_controls": [
+        {
+          "control_key": "1",
+          "display_name": "Fuzz",
+          "supports_standby": false,
+          "status": "indeterminate"
+        }
+      ]
+    },
+    {
+      "output_id": "170185aa697e2355f8953b1f4a2952d75c5d",
+      "zone_id": "160185aa697e2355f8953b1f4a2952d75c5d",
+      "can_group_with_output_ids": [
+        "17014e4e494c2600220f366c01475414013f",
+        "170185aa697e2355f8953b1f4a2952d75c5d",
+        "1701e822438f0745214bb93d020e0b428708",
+        "17016a7061d5ae13c35e4aca31b0c868d878",
+        "1701814943db51605942a87582477057fb75"
+      ],
+      "display_name": "Fizz",
+      "source_controls": [
+        {
+          "control_key": "1",
+          "display_name": "Funky",
+          "supports_standby": false,
+          "status": "indeterminate"
+        }
+      ]
+    },
+    {
+      "output_id": "17016a7061d5ae13c35e4aca31b0c868d878",
+      "zone_id": "16013065cbe8e3ecaf4c8c47d851e7641867",
+      "can_group_with_output_ids": [
+        "17014e4e494c2600220f366c01475414013f",
+        "170185aa697e2355f8953b1f4a2952d75c5d",
+        "1701e822438f0745214bb93d020e0b428708",
+        "17016a7061d5ae13c35e4aca31b0c868d878",
+        "1701814943db51605942a87582477057fb75"
+      ],
+      "display_name": "Bongo",
+      "volume": {
+        "type": "number",
+        "min": 0,
+        "max": 100,
+        "value": 100,
+        "step": 1,
+        "is_muted": false,
+        "hard_limit_min": 0,
+        "hard_limit_max": 100,
+        "soft_limit": 100
+      },
+      "source_controls": [
+        {
+          "control_key": "1",
+          "display_name": "mongo",
+          "supports_standby": false,
+          "status": "indeterminate"
+        }
+      ]
+    },
+    {
+      "output_id": "17014e4e494c2600220f366c01475414013f",
+      "zone_id": "16013065cbe8e3ecaf4c8c47d851e7641867",
+      "can_group_with_output_ids": [
+        "17014e4e494c2600220f366c01475414013f",
+        "170185aa697e2355f8953b1f4a2952d75c5d",
+        "1701e822438f0745214bb93d020e0b428708",
+        "17016a7061d5ae13c35e4aca31b0c868d878",
+        "1701814943db51605942a87582477057fb75"
+      ],
+      "display_name": "Fred",
+      "source_controls": [
+        {
+          "control_key": "1",
+          "display_name": "Fred",
+          "supports_standby": true,
+          "status": "selected"
+        }
+      ]
+    },
+    {
+      "output_id": "1701814943db51605942a87582477057fb75",
+      "zone_id": "16013065cbe8e3ecaf4c8c47d851e7641867",
+      "can_group_with_output_ids": [
+        "17014e4e494c2600220f366c01475414013f",
+        "170185aa697e2355f8953b1f4a2952d75c5d",
+        "1701e822438f0745214bb93d020e0b428708",
+        "17016a7061d5ae13c35e4aca31b0c868d878",
+        "1701814943db51605942a87582477057fb75"
+      ],
+      "display_name": "Scooby",
+      "volume": {
+        "type": "number",
+        "min": 0,
+        "max": 100,
+        "value": 27,
+        "step": 1,
+        "is_muted": false,
+        "hard_limit_min": 0,
+        "hard_limit_max": 100,
+        "soft_limit": 100
+      },
+      "source_controls": [
+        {
+          "control_key": "1",
+          "display_name": "Scooby",
+          "supports_standby": true,
+          "status": "selected"
+        }
+      ]
+    },
+    {
+      "output_id": "1701e822438f0745214bb93d020e0b428708",
+      "zone_id": "1601e822438f0745214bb93d020e0b428708",
+      "can_group_with_output_ids": [
+        "17014e4e494c2600220f366c01475414013f",
+        "170185aa697e2355f8953b1f4a2952d75c5d",
+        "1701e822438f0745214bb93d020e0b428708",
+        "17016a7061d5ae13c35e4aca31b0c868d878",
+        "1701814943db51605942a87582477057fb75"
+      ],
+      "display_name": "Shaggy",
+      "source_controls": [
+        {
+          "control_key": "1",
+          "display_name": "Shaggy",
+          "supports_standby": false,
+          "status": "indeterminate"
+        }
+      ]
+    }
+  ]
+}

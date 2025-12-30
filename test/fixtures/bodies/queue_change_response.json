@@ -1,0 +1,185 @@
+{
+  "changes": [
+    {
+      "operation": "remove",
+      "index": 0,
+      "count": 10
+    },
+    {
+      "operation": "insert",
+      "index": 0,
+      "items": [
+        {
+          "queue_item_id": 1057136,
+          "length": 245,
+          "image_key": "f063b431ab029c7051b2d49e38c87acd",
+          "one_line": {
+            "line1": "Mrs. Butterworth - Nirvana"
+          },
+          "two_line": {
+            "line1": "Mrs. Butterworth",
+            "line2": "Nirvana"
+          },
+          "three_line": {
+            "line1": "Mrs. Butterworth",
+            "line2": "Nirvana",
+            "line3": "With the Lights Out"
+          }
+        },
+        {
+          "queue_item_id": 1057137,
+          "length": 241,
+          "image_key": "f063b431ab029c7051b2d49e38c87acd",
+          "one_line": {
+            "line1": "If You Must - Nirvana"
+          },
+          "two_line": {
+            "line1": "If You Must",
+            "line2": "Nirvana"
+          },
+          "three_line": {
+            "line1": "If You Must",
+            "line2": "Nirvana",
+            "line3": "With the Lights Out"
+          }
+        },
+        {
+          "queue_item_id": 1057138,
+          "length": 182,
+          "image_key": "f063b431ab029c7051b2d49e38c87acd",
+          "one_line": {
+            "line1": "Pen Cap Chew - Nirvana"
+          },
+          "two_line": {
+            "line1": "Pen Cap Chew",
+            "line2": "Nirvana"
+          },
+          "three_line": {
+            "line1": "Pen Cap Chew",
+            "line2": "Nirvana",
+            "line3": "With the Lights Out"
+          }
+        },
+        {
+          "queue_item_id": 1057139,
+          "length": 103,
+          "image_key": "f063b431ab029c7051b2d49e38c87acd",
+          "one_line": {
+            "line1": "Downer - Nirvana"
+          },
+          "two_line": {
+            "line1": "Downer",
+            "line2": "Nirvana"
+          },
+          "three_line": {
+            "line1": "Downer",
+            "line2": "Nirvana",
+            "line3": "With the Lights Out"
+          }
+        },
+        {
+          "queue_item_id": 1057140,
+          "length": 153,
+          "image_key": "f063b431ab029c7051b2d49e38c87acd",
+          "one_line": {
+            "line1": "Floyd the Barber - Nirvana"
+          },
+          "two_line": {
+            "line1": "Floyd the Barber",
+            "line2": "Nirvana"
+          },
+          "three_line": {
+            "line1": "Floyd the Barber",
+            "line2": "Nirvana",
+            "line3": "With the Lights Out"
+          }
+        },
+        {
+          "queue_item_id": 1057141,
+          "length": 384,
+          "image_key": "f063b431ab029c7051b2d49e38c87acd",
+          "one_line": {
+            "line1": "Raunchola/Moby Dick - Nirvana"
+          },
+          "two_line": {
+            "line1": "Raunchola/Moby Dick",
+            "line2": "Nirvana"
+          },
+          "three_line": {
+            "line1": "Raunchola/Moby Dick",
+            "line2": "Nirvana",
+            "line3": "With the Lights Out"
+          }
+        },
+        {
+          "queue_item_id": 1057142,
+          "length": 92,
+          "image_key": "f063b431ab029c7051b2d49e38c87acd",
+          "one_line": {
+            "line1": "Beans - Nirvana"
+          },
+          "two_line": {
+            "line1": "Beans",
+            "line2": "Nirvana"
+          },
+          "three_line": {
+            "line1": "Beans",
+            "line2": "Nirvana",
+            "line3": "With the Lights Out"
+          }
+        },
+        {
+          "queue_item_id": 1057143,
+          "length": 146,
+          "image_key": "f063b431ab029c7051b2d49e38c87acd",
+          "one_line": {
+            "line1": "Don't Want It All - Nirvana"
+          },
+          "two_line": {
+            "line1": "Don't Want It All",
+            "line2": "Nirvana"
+          },
+          "three_line": {
+            "line1": "Don't Want It All",
+            "line2": "Nirvana",
+            "line3": "With the Lights Out"
+          }
+        },
+        {
+          "queue_item_id": 1057144,
+          "length": 192,
+          "image_key": "f063b431ab029c7051b2d49e38c87acd",
+          "one_line": {
+            "line1": "Clean up Before She Comes - Nirvana"
+          },
+          "two_line": {
+            "line1": "Clean up Before She Comes",
+            "line2": "Nirvana"
+          },
+          "three_line": {
+            "line1": "Clean up Before She Comes",
+            "line2": "Nirvana",
+            "line3": "With the Lights Out"
+          }
+        },
+        {
+          "queue_item_id": 1057145,
+          "length": 150,
+          "image_key": "f063b431ab029c7051b2d49e38c87acd",
+          "one_line": {
+            "line1": "Polly - Nirvana"
+          },
+          "two_line": {
+            "line1": "Polly",
+            "line2": "Nirvana"
+          },
+          "three_line": {
+            "line1": "Polly",
+            "line2": "Nirvana",
+            "line3": "With the Lights Out"
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,6 @@
+MOO/1 CONTINUE Registered
+Content-Type: application/json
+Request-Id: 10
+Content-Length: 294
+
+{"core_id":"a7cc7331-c854-4fe3-be9f-239833392d3a","display_name":"foobar","display_version":"2.54 (build 1554) production","token":"XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX","provided_services":["com.roonlabs.transport:2","com.roonlabs.browse:1"],"http_port":9330,"extension_host":"192.168.10.200"}

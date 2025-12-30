@@ -14,3 +14,8 @@ extra/
 prompts/PROMPTS.md
 result
 .env
+test/fixtures/seed.tgz
+test/fixtures/seed-info.edn
+target/roon-test
+test/fixtures/reversed.edn
+

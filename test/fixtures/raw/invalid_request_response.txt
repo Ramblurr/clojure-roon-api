@@ -1,0 +1,6 @@
+MOO/1 COMPLETE InvalidRequest
+Content-Type: application/json
+Request-Id: 15
+Content-Length: 90
+
+{"message":"Only one of item_key, pop_all, pop_levels, and refresh_list may be populated"}
