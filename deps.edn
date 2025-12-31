@@ -9,7 +9,7 @@
            :dev    {:extra-paths ["dev" "test"]
                     :extra-deps  {dev.weavejester/hashp                    {:mvn/version "0.5.1"}
                                   hato/hato                                {:mvn/version "1.0.0"}
-                                  babashka/fs                              {:mvn/version "0.5.27"}
+                                  babashka/fs                              {:mvn/version "0.5.30"}
                                   babashka/process                         {:mvn/version "0.5.22"}
                                   io.github.tonsky/clj-reload              {:mvn/version "1.0.0"}
                                   djblue/portal                            {:mvn/version "0.62.1"}
