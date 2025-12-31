@@ -8,7 +8,7 @@
    [java.nio ByteBuffer]
    [java.time Duration]
    [java.util.concurrent CompletableFuture TimeUnit]
-   [java.util.function Function]))
+   [java.util.function Consumer Function]))
 
 (set! *warn-on-reflection* true)
 
@@ -109,7 +109,7 @@
 ;;; Public API
 
 (defn connect!
-  "Opens a WebSocket connection (blocking).
+  "Opens a WebSocket connection. Returns promise.
 
   url  - WebSocket URL, e.g. \"ws://10.9.4.17:9330/api\"
   opts - map of:
@@ -120,22 +120,33 @@
     :timeout-ms  Connection timeout (default 10000)
     :headers     Map of header name -> value
 
-  Returns the WebSocket instance."
+  Returns a promise that delivers the WebSocket on success,
+  or an exception on failure/timeout."
   [url opts]
   (let [timeout-ms                                                    (get opts :timeout-ms 10000)
         headers                                                       (get opts :headers {})
         listener                                                      (make-listener opts)
         http-client                                                   (HttpClient/newHttpClient)
+        result                                                        (promise)
         ^WebSocket$Builder builder
         (cond-> (.newWebSocketBuilder http-client)
           timeout-ms (.connectTimeout (Duration/ofMillis timeout-ms))
-          true identity)]
+          true       identity)]
     ;; Add headers
     (doseq [[k v] headers]
       (.header builder (name k) (str v)))
-    ;; Connect and wait
+    ;; Connect async, deliver to promise
     (let [^CompletableFuture future (.buildAsync builder (URI/create url) listener)]
-      (.get future timeout-ms TimeUnit/MILLISECONDS))))
+      (-> future
+          (.orTimeout timeout-ms TimeUnit/MILLISECONDS)
+          (.thenAccept (reify Consumer
+                         (accept [_ ws]
+                           (deliver result ws))))
+          (.exceptionally (reify Function
+                            (apply [_ ex]
+                              (deliver result ex)
+                              nil)))))
+    result))
 
 (defn send!
   "Sends binary data through WebSocket.

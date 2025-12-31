@@ -9,11 +9,14 @@
            '[ol.roon.services.transport :as transport]
            '[clojure.core.async :refer [<! go-loop]])
 
-  ;; Connect
-  (def conn (roon/connect!
-              {:host \"10.9.4.17\"
-               :extension-id \"com.example.myapp\"
-               :display-name \"My Roon App\"}))
+  ;; Connect (returns promise, deref to block)
+  (def conn @(roon/connect!
+               {:host \"10.9.4.17\"
+                :extension-id \"com.example.myapp\"
+                :display-name \"My Roon App\"
+                :display-version \"1.0.0\"
+                :publisher \"Example Publisher\"
+                :email \"contact@example.com\"}))
 
   ;; Unified event loop - receives all events
   (go-loop []
@@ -59,9 +62,10 @@
 (set! *warn-on-reflection* true)
 
 (defn connect!
-  "Connects to Roon Core and registers extension. Blocking.
+  "Connects to Roon Core and registers extension. Returns promise.
 
-  Returns {:conn Connection :events <channel>}.
+  Promise delivers {:conn Connection :events <channel>} on success,
+  or an exception on failure.
 
   Events channel receives all events with shape:
     {::roon/event ::roon/registered ::roon/data {...}}
@@ -70,24 +74,42 @@
 
   See `ol.roon.schema/EventDataRegistry` for all event types and payloads.
 
+  Usage:
+    (let [p (connect! {:host \"10.0.0.1\" ...})]
+      ;; do other work while connecting...
+      (let [{:keys [conn events]} @p]
+        ;; connected, use conn and events
+        ...))
+
+    ;; With timeout
+    (let [result (deref (connect! config) 5000 :timeout)]
+      (when-not (= result :timeout)
+        ...))
+
   Config map:
   | key               | required | description                    |
   |-------------------|----------|--------------------------------|
   | :host             | yes      | Roon Core IP or hostname       |
   | :extension-id     | yes      | Unique extension identifier    |
   | :display-name     | yes      | Human-readable name            |
-  | :display-version  | no       | Version string (default 1.0.0) |
-  | :publisher        | no       | Publisher name                 |
-  | :email            | no       | Contact email                  |
+  | :display-version  | yes      | Version string                 |
+  | :publisher        | yes      | Publisher name                 |
+  | :email            | yes      | Contact email                  |
   | :token            | no       | Saved token for re-auth        |
   | :port             | no       | WebSocket port (default 9330)  |
   | :timeout-ms       | no       | Request timeout (default 30000)|
   | :auto-reconnect   | no       | Auto-reconnect (default true)  |"
   [config]
-  (let [connection (conn/make-connection config)]
-    (conn/start! connection)
-    {:conn   connection
-     :events (:events-ch connection)}))
+  (let [connection     (conn/make-connection config)
+        result-promise (promise)]
+    (Thread/startVirtualThread
+     (fn []
+       (let [result @(conn/start! connection)]
+         (if (instance? Exception result)
+           (deliver result-promise result)
+           (deliver result-promise {:conn   connection
+                                    :events (:events-ch connection)})))))
+    result-promise))
 
 (defn disconnect!
   "Disconnects from Roon Core."

@@ -54,9 +54,12 @@
         (is (= 5 (alength arr)))
         (is (= "56789" (String. ^bytes arr "UTF-8")))))))
 
-;;; Integration tests (require real server)
+;;; Promise-based connect tests
 
-(deftest connect-to-invalid-host-throws
-  (testing "connect! throws on invalid host"
-    (is (thrown? Exception
-                 (ws/connect! "ws://invalid.local.host:9999" {})))))
+(deftest connect-to-invalid-host-delivers-exception
+  (testing "connect! delivers exception to promise on invalid host"
+    (let [result (deref (ws/connect! "ws://invalid.local.host:9999" {:timeout-ms 1000})
+                        2000
+                        ::timeout)]
+      (is (not= ::timeout result))
+      (is (instance? Exception result)))))

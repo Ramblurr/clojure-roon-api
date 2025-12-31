@@ -132,6 +132,20 @@
         (is (bytes? (:data result)))
         (is (= (seq binary-data) (seq (:data result))))))))
 
+(deftest complete-pending-delivers-error-with-type
+  (testing "failed response delivers ExceptionInfo with ::roon/error key"
+    (let [c      (conn/make-connection {:host "test"})
+          p      (promise)
+          req-id 42]
+      (conn/add-pending! c req-id p)
+      (conn/complete-pending! c req-id "NotAuthorized" {"message" "Extension not authorized"} nil)
+      (is (realized? p))
+      (let [result @p]
+        (is (instance? clojure.lang.ExceptionInfo result))
+        (is (= ::roon/request-failed (::roon/error (ex-data result))))
+        (is (= "NotAuthorized" (:name (ex-data result))))
+        (is (= {"message" "Extension not authorized"} (:body (ex-data result))))))))
+
 (deftest dispatch-subscription-delivers-to-events-channel
   (testing "CONTINUE delivers event to unified events channel"
     (let [c         (conn/make-connection {:host "test"})
@@ -178,8 +192,10 @@
       (let [c (conn/make-connection {:host            host
                                      :extension-id    "test.connection"
                                      :display-name    "Connection Test"
-                                     :display-version "1.0.0"})]
-        (conn/start! c)
+                                     :display-version "1.0.0"
+                                     :publisher       "Test Publisher"
+                                     :email           "test@example.com"})]
+        @(conn/start! c)
         (is (= :connected (conn/status c)))
         (conn/disconnect! c)
         (is (= :disconnected (conn/status c))))
@@ -199,7 +215,7 @@
       (is (realized? p))
       (let [result @p]
         (is (instance? clojure.lang.ExceptionInfo result))
-        (is (= ::roon/disconnected (::roon/event (ex-data result))))))))
+        (is (= ::roon/disconnected (::roon/error (ex-data result))))))))
 
 (deftest fail-pending-clears-all-pending
   (testing "fail-pending! clears all pending requests"

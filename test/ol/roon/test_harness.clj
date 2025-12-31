@@ -320,18 +320,19 @@
   ([] (connection-fixture {}))
   ([opts]
    (fn [f]
-     (let [seed-info (edn/read-string (slurp seed-info-path))
-           conn      (api/connect!
-                      {:host              (get opts :host "127.0.0.1")
-                       :port              (get opts :port 9330)
-                       :extension-id      (:extension-id seed-info)
-                       :display-name      (:display-name seed-info)
-                       :display-version   (:display-version seed-info)
-                       :publisher         (:publisher seed-info)
-                       :email             (:email seed-info)
-                       :token             (:token seed-info)
-                       :required-services (:required-services seed-info)
-                       :timeout-ms        (get opts :timeout-ms 15000)})]
+     (let [seed-info  (edn/read-string (slurp seed-info-path))
+           timeout-ms (get opts :timeout-ms 15000)
+           conn       @(api/connect!
+                        {:host              (get opts :host "127.0.0.1")
+                         :port              (get opts :port 9330)
+                         :extension-id      (:extension-id seed-info)
+                         :display-name      (:display-name seed-info)
+                         :display-version   (:display-version seed-info)
+                         :publisher         (:publisher seed-info)
+                         :email             (:email seed-info)
+                         :token             (:token seed-info)
+                         :required-services (:required-services seed-info)
+                         :timeout-ms        timeout-ms})]
        (reset! conn-state conn)
        (try
          (f)

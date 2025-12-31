@@ -403,6 +403,31 @@
    [::event EventType]
    [::data :any]])
 
+;;; Error Types
+;;
+;; All exceptions are ExceptionInfo with ::error key in ex-data.
+;; Use (::roon/error (ex-data e)) to dispatch on error type.
+
+(def ErrorType
+  "Enum of error types for exception handling.
+
+  All connection/request exceptions include ::error in ex-data:
+  - ::connection-failed    - WebSocket connection failed (network error)
+  - ::connection-timeout   - WebSocket connection timed out
+  - ::registration-timeout - Connected but registration timed out
+  - ::registration-failed  - Server rejected registration
+  - ::request-failed       - Request returned error response
+  - ::request-timeout      - Request timed out waiting for response
+  - ::disconnected         - Connection was lost"
+  [:enum
+   ::connection-failed
+   ::connection-timeout
+   ::registration-timeout
+   ::registration-failed
+   ::request-failed
+   ::request-timeout
+   ::disconnected])
+
 ;;;; Settings Widget Types
 
 (def DropdownValue

@@ -57,9 +57,9 @@
   | :host               | yes      | Roon Core IP or hostname                 |
   | :extension-id       | yes      | Unique extension identifier              |
   | :display-name       | yes      | Human-readable name                      |
-  | :display-version    | no       | Version string (default 1.0.0)           |
-  | :publisher          | no       | Publisher name                           |
-  | :email              | no       | Contact email                            |
+  | :display-version    | yes      | Version string                           |
+  | :publisher          | yes      | Publisher name                           |
+  | :email              | yes      | Contact email                            |
   | :token              | no       | Saved auth token for reconnection        |
   | :port               | no       | WebSocket port (default 9330)            |
   | :timeout-ms         | no       | Request timeout (default 30000)          |
@@ -133,12 +133,12 @@
 (defn fail-pending!
   "Fails all pending requests with disconnect error.
 
-  Delivers an ExceptionInfo with ::roon/disconnected to each pending promise
-  and clears the pending map."
+  Delivers an ExceptionInfo with ::roon/error ::roon/disconnected to each
+  pending promise and clears the pending map."
   [{:keys [state]}]
   (let [pending (:pending @state)]
     (doseq [[_req-id p] pending]
-      (deliver p (ex-info "Connection lost" {::roon/event ::roon/disconnected})))
+      (deliver p (ex-info "Connection lost" {::roon/error ::roon/disconnected})))
     (swap! state assoc :pending {})))
 
 ;;; Subscription management
@@ -351,14 +351,17 @@
 (defn complete-pending!
   "Delivers response to pending request promise and removes it.
 
-  For binary responses (bytes), wraps in {:content-type ... :data ...}."
+  For binary responses (bytes), wraps in {:content-type ... :data ...}.
+  For failures, delivers ExceptionInfo with ::roon/error key."
   [conn req-id name body content-type]
   (when-let [p (get-pending conn req-id)]
     (if (#{"Success" "Registered"} name)
       (if (bytes? body)
         (deliver p {:content-type content-type :data body})
         (deliver p body))
-      (deliver p (ex-info "Request failed" {:name name :body body})))
+      (deliver p (ex-info "Request failed" {::roon/error ::roon/request-failed
+                                            :name        name
+                                            :body        body})))
     (remove-pending! conn req-id)))
 
 (defn dispatch-subscription!
@@ -499,68 +502,120 @@
 
 ;;; Connection lifecycle
 
-(defn- register!
-  "Registers extension with Roon Core. Returns response body.
+(defn- build-registration-body
+  "Builds the registration request body from config and state."
+  [config state]
+  (let [provided-svc-names (vec (keys (:provided-services @state)))
+        token              (or (:token @state) (:token config))]
+    (cond-> {:extension_id      (:extension-id config)
+             :display_name      (:display-name config)
+             :display_version   (:display-version config)
+             :publisher         (:publisher config)
+             :email             (:email config)
+             :required_services (:required-services config)
+             :optional_services []
+             :provided_services provided-svc-names}
+      token (assoc :token token))))
 
-  Dynamically builds provided_services from what's registered."
-  [{:keys [config state] :as conn}]
-  (let [{:keys [extension-id display-name display-version publisher email required-services]} config
-        ;; Build provided_services from registered services
-        provided-svc-names (vec (keys (:provided-services @state)))
-        body               {:extension_id      extension-id
-                            :display_name      display-name
-                            :display_version   (or display-version "1.0.0")
-                            :publisher         (or publisher "")
-                            :email             (or email "")
-                            :required_services required-services
-                            :optional_services []
-                            :provided_services provided-svc-names}
-        ;; Include token if we have one (from state or config)
-        body                                                                (if-let [token (or (:token @state) (:token config))]
-                                                                              (assoc body :token token)
-                                                                              body)
-        p                                                                   (request! conn {:uri "com.roonlabs.registry:1/register" :body body})
-        ;; Block waiting for registration
-        result                                                              (deref p (:timeout-ms config) ::timeout)]
-    (if (= result ::timeout)
-      (throw (ex-info "Registration timeout" {:timeout-ms (:timeout-ms config)}))
-      (if (instance? Exception result)
-        (throw result)
-        result))))
+(defn register
+  "Returns request map for extension registration.
+
+  This is a data builder function. Use `register!` to send the request.
+
+  The request map contains:
+  - :uri - The registry service endpoint
+  - :body - Registration payload with extension info"
+  [{:keys [config state]}]
+  {:uri  "com.roonlabs.registry:1/register"
+   :body (build-registration-body config state)})
+
+(defn- register!
+  "Sends registration request. Returns promise.
+
+  Promise delivers the registration response on success, exception on failure."
+  [conn]
+  (request! conn (register conn)))
+
+(defn- wrap-connection-error
+  "Wraps a raw exception in an ExceptionInfo with appropriate ::roon/error type."
+  [^Exception ex]
+  (let [error-type (if (instance? java.util.concurrent.TimeoutException ex)
+                     ::roon/connection-timeout
+                     ::roon/connection-failed)]
+    (ex-info "Connection failed" {::roon/error error-type
+                                  :cause       (.getMessage ex)}
+             ex)))
 
 (defn- do-connect!
-  "Connects WebSocket and registers extension. Blocking.
+  "Connects WebSocket and registers extension. Returns promise.
 
   Used by start! for initial connection and by reconnect-loop! for reconnection.
-  Does not emit events - caller is responsible for that."
+  Does not emit events - caller is responsible for that.
+
+  Promise delivers the connection on success, ExceptionInfo on failure.
+  All failures include ::roon/error key for dispatch."
   [{:keys [config state recv-ch] :as conn}]
-  (let [{:keys [host port on-core-lost]} config
-        url                              (str "ws://" host ":" port "/api")
-        ws                               (ws/connect! url
-                                                      {:on-message (fn [_ws data]
-                                                                     (put! recv-ch data))
-                                                       :on-close   (fn [_ws code reason]
-                                                                     (put! recv-ch {:type :closed :code code :reason reason}))
-                                                       :on-error   (fn [_ws err]
-                                                                     (put! recv-ch {:type :error :error err}))})]
-    (swap! state assoc :websocket ws)
-    ;; Register built-in provided services
-    (register-provided-service! conn (ping/make-service-spec))
-    (register-provided-service! conn (pairing/make-service-spec on-core-lost))
-    ;; Register user-provided services from config
-    (doseq [service (:provided-services config)]
-      (register-service-instance! conn service)
-      (register-provided-service! conn (:spec service)))
-    ;; Start message loops
-    (start-send-loop! conn)
-    (start-recv-loop! conn)
-    ;; Register with server (uses saved token if available)
-    (let [result (register! conn)]
-      (swap! state assoc
-             :core-info (select-keys result ["core_id" "display_name" "display_version"])
-             :token (get result "token"))
-      (set-status! conn :connected)
-      result)))
+  (let [result-promise (promise)
+        timeout-ms     (:timeout-ms config)]
+    (Thread/startVirtualThread
+     (fn []
+       (try
+         (let [{:keys [host port on-core-lost]} config
+               url                              (str "ws://" host ":" port "/api")
+               ;; 1. Connect WebSocket (with timeout)
+               ws-result                        @(ws/connect! url
+                                                              {:timeout-ms timeout-ms
+                                                               :on-message (fn [_ws data]
+                                                                             (put! recv-ch data))
+                                                               :on-close   (fn [_ws code reason]
+                                                                             (put! recv-ch {:type :closed :code code :reason reason}))
+                                                               :on-error   (fn [_ws err]
+                                                                             (put! recv-ch {:type :error :error err}))})]
+           (if (instance? Exception ws-result)
+             (deliver result-promise (wrap-connection-error ws-result))
+             (do
+               (swap! state assoc :websocket ws-result)
+               ;; Register built-in provided services
+               (register-provided-service! conn (ping/make-service-spec))
+               (register-provided-service! conn (pairing/make-service-spec on-core-lost))
+               ;; Register user-provided services from config
+               (doseq [service (:provided-services config)]
+                 (register-service-instance! conn service)
+                 (register-provided-service! conn (:spec service)))
+               ;; 2. Start message loops
+               (start-send-loop! conn)
+               (start-recv-loop! conn)
+               ;; 3. Register (with timeout)
+               (let [reg-result (deref (register! conn) timeout-ms ::timeout)]
+                 (cond
+                   (= reg-result ::timeout)
+                   (deliver result-promise (ex-info "Registration timeout"
+                                                    {::roon/error ::roon/registration-timeout
+                                                     :timeout-ms  timeout-ms}))
+
+                   (instance? Exception reg-result)
+                   ;; Registration failed - check if it's already wrapped
+                   (if (::roon/error (ex-data reg-result))
+                     ;; Already has error type (e.g., request-failed from complete-pending!)
+                     ;; Re-wrap as registration-failed for clarity
+                     (deliver result-promise (ex-info "Registration failed"
+                                                      {::roon/error ::roon/registration-failed
+                                                       :name        (:name (ex-data reg-result))
+                                                       :body        (:body (ex-data reg-result))}
+                                                      reg-result))
+                     (deliver result-promise reg-result))
+
+                   :else
+                   (do
+                     (swap! state assoc
+                            :core-info (select-keys reg-result ["core_id" "display_name" "display_version"])
+                            :token (get reg-result "token"))
+                     (set-status! conn :connected)
+                     (deliver result-promise conn)))))))
+         (catch Exception e
+           (set-status! conn :disconnected)
+           (deliver result-promise (wrap-connection-error e))))))
+    result-promise))
 
 (defn- reconnect-loop!
   "Attempts reconnection with exponential backoff. Runs on virtual thread.
@@ -581,11 +636,8 @@
                                 ::roon/data  {:attempt attempt :backoff-ms backoff}})
                (Thread/sleep ^long backoff)
                (when-not (:explicitly-disconnected @state)
-                 (let [success? (try
-                                  (do-connect! conn)
-                                  true
-                                  (catch Exception _e
-                                    false))]
+                 (let [result   @(do-connect! conn)
+                       success? (not (instance? Exception result))]
                    (if success?
                      (put! events-ch {::roon/event ::roon/reconnected
                                       ::roon/data  (:core-info @state)})
@@ -594,15 +646,26 @@
            (reset! reconnecting-atom false)))))))
 
 (defn start!
-  "Connects to Roon Core and registers extension. Blocking.
+  "Connects to Roon Core and registers extension. Returns promise.
 
-  Returns the connection on success, throws on failure."
+  Promise delivers the connection on success, exception on failure.
+  Timeout from :timeout-ms config (default 30000).
+
+  Events emitted to :events-ch:
+  - ::roon/registered on success (after promise delivered)"
   [{:keys [events-ch] :as conn}]
   (set-status! conn :connecting)
-  (do-connect! conn)
-  (put! events-ch {::roon/event ::roon/registered
-                   ::roon/data  (:core-info @(:state conn))})
-  conn)
+  (let [result-promise (promise)]
+    (Thread/startVirtualThread
+     (fn []
+       (let [result @(do-connect! conn)]
+         (if (instance? Exception result)
+           (deliver result-promise result)
+           (do
+             (put! events-ch {::roon/event ::roon/registered
+                              ::roon/data  (:core-info @(:state conn))})
+             (deliver result-promise conn))))))
+    result-promise))
 
 (defn disconnect!
   "Disconnects from Roon Core."
