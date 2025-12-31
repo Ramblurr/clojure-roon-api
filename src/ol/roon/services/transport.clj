@@ -78,6 +78,14 @@
   {:uri  (str service "/pause_all")
    :body nil})
 
+(defn mute-all
+  "Returns request map for muting/unmuting all zones.
+
+  how - :mute or :unmute"
+  [how]
+  {:uri  (str service "/mute_all")
+   :body {"how" (name how)}})
+
 (defn standby
   "Returns request map for standby.
 
@@ -89,6 +97,16 @@
    {:uri  (str service "/standby")
     :body (cond-> {"output_id" output-id}
             control-key (assoc "control_key" control-key))}))
+
+(defn toggle-standby
+  "Returns request map for toggling standby.
+
+  output-id   - output_id string
+  control-key - source control key (required)"
+  [output-id control-key]
+  {:uri  (str service "/toggle_standby")
+   :body {"output_id"   output-id
+          "control_key" control-key}})
 
 (defn convenience-switch
   "Returns request map for convenience switch.
@@ -136,6 +154,16 @@
   [zone-or-output-id settings]
   {:uri  (str service "/change_settings")
    :body (assoc settings "zone_or_output_id" zone-or-output-id)})
+
+(defn play-from-here
+  "Returns request map for playing from a queue item.
+
+  zone-or-output-id - zone_id or output_id string
+  queue-item-id     - queue item ID (number)"
+  [zone-or-output-id queue-item-id]
+  {:uri  (str service "/play_from_here")
+   :body {"zone_or_output_id" zone-or-output-id
+          "queue_item_id"     queue-item-id}})
 
 ;;; Action functions (return promises)
 
@@ -192,6 +220,13 @@
   [connection]
   (conn/request! connection (pause-all)))
 
+(defn mute-all!
+  "Mutes or unmutes all zones. Returns a promise.
+
+  how - :mute or :unmute"
+  [connection how]
+  (conn/request! connection (mute-all how)))
+
 (defn standby!
   "Puts output into standby. Returns a promise.
 
@@ -201,6 +236,14 @@
    (standby! connection output-id nil))
   ([connection output-id control-key]
    (conn/request! connection (standby output-id control-key))))
+
+(defn toggle-standby!
+  "Toggles standby state on output. Returns a promise.
+
+  output-id   - output_id string
+  control-key - source control key (required)"
+  [connection output-id control-key]
+  (conn/request! connection (toggle-standby output-id control-key)))
 
 (defn convenience-switch!
   "Activates convenience switch on output. Returns a promise.
@@ -241,6 +284,14 @@
   settings          - map of settings (loop, shuffle, auto_radio)"
   [connection zone-or-output-id settings]
   (conn/request! connection (change-settings zone-or-output-id settings)))
+
+(defn play-from-here!
+  "Starts playback from a queue item. Returns a promise.
+
+  zone-or-output-id - zone_id or output_id string
+  queue-item-id     - queue item ID (number)"
+  [connection zone-or-output-id queue-item-id]
+  (conn/request! connection (play-from-here zone-or-output-id queue-item-id)))
 
 ;;; Subscriptions (events flow to unified events-ch)
 
