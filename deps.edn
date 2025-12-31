@@ -10,7 +10,7 @@
                     :extra-deps  {dev.weavejester/hashp                    {:mvn/version "0.5.1"}
                                   hato/hato                                {:mvn/version "1.0.0"}
                                   babashka/fs                              {:mvn/version "0.5.27"}
-                                  babashka/process                         {:mvn/version "0.5.22"}
+                                  babashka/process                         {:mvn/version "0.6.25"}
                                   io.github.tonsky/clj-reload              {:mvn/version "1.0.0"}
                                   djblue/portal                            {:mvn/version "0.62.1"}
                                   com.clojure-goes-fast/clj-async-profiler {:mvn/version "1.6.2"}}
