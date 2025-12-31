@@ -176,24 +176,3 @@
   "Deserializes state from EDN string."
   [s]
   (persist/edn->state s))
-
-;;; Legacy helpers (for backwards compatibility)
-
-(defn save-config
-  "Extracts token and core-id for persistence.
-
-  DEPRECATED: Use extract-state instead for multi-core support.
-
-  Returns a map that can be serialized and passed to connect!
-  on next run to skip re-authorization."
-  [{:keys [conn]}]
-  (let [{:keys [core-info token]} @(:state conn)]
-    {:token   token
-     :core-id (get core-info "core_id")}))
-
-(defn load-config
-  "Loads saved config from EDN file.
-
-  DEPRECATED: Use edn->state and apply-state instead."
-  [path]
-  (read-string (slurp path)))

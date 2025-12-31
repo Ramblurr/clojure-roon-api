@@ -109,12 +109,12 @@
         "treefmt-nix": "treefmt-nix_2"
       },
       "locked": {
-        "lastModified": 1766488295,
-        "narHash": "sha256-LKMu0j9yjntwa67Ud4yO0tXBI1MeT9CbSFDAitgOqXY=",
-        "rev": "afd000cc14da181170cf3656048fd99425a7c082",
-        "revCount": 90,
+        "lastModified": 1767016851,
+        "narHash": "sha256-pe3q5J6x7UBs/vJKFzge/ncPHu2lmNB6GA6yhEtkW84=",
+        "rev": "400792d1da306cf865984d578aa1d0e5bfb30d58",
+        "revCount": 97,
         "type": "tarball",
-        "url": "https://api.flakehub.com/f/pinned/ramblurr/nix-devenv/0.1.90%2Brev-afd000cc14da181170cf3656048fd99425a7c082/019b4aec-df27-7f6b-a866-a4efbb2f1afc/source.tar.gz"
+        "url": "https://api.flakehub.com/f/pinned/ramblurr/nix-devenv/0.1.97%2Brev-400792d1da306cf865984d578aa1d0e5bfb30d58/019b6a6d-98e0-708b-91aa-d004e540b97a/source.tar.gz"
       },
       "original": {
         "type": "tarball",
