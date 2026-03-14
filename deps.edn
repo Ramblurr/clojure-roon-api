@@ -1,6 +1,6 @@
 {:paths   ["src"]
  :deps    {org.clojure/core.async {:mvn/version "1.8.741"}
-           metosin/malli          {:mvn/version "0.20.0"}
+           metosin/malli          {:mvn/version "0.20.1"}
            com.cnuernber/charred  {:mvn/version "1.037"}}
  :aliases {:kaocha {:extra-paths ["test"]
                     :extra-deps  {lambdaisland/kaocha {:mvn/version "1.91.1392"}}
