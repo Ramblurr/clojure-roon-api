@@ -123,11 +123,11 @@
   Returns a promise that delivers the WebSocket on success,
   or an exception on failure/timeout."
   [url opts]
-  (let [timeout-ms                                                    (get opts :timeout-ms 10000)
-        headers                                                       (get opts :headers {})
-        listener                                                      (make-listener opts)
-        http-client                                                   (HttpClient/newHttpClient)
-        result                                                        (promise)
+  (let [timeout-ms  (get opts :timeout-ms 10000)
+        headers     (get opts :headers {})
+        listener    (make-listener opts)
+        http-client (HttpClient/newHttpClient)
+        result      (promise)
         ^WebSocket$Builder builder
         (cond-> (.newWebSocketBuilder http-client)
           timeout-ms (.connectTimeout (Duration/ofMillis timeout-ms))

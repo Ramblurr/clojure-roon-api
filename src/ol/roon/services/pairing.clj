@@ -67,7 +67,7 @@
   Arguments:
   - on-core-lost: Callback fn called with old core id when pairing changes"
   [on-core-lost]
-  {:name                                                                 service-name
+  {:name service-name
    :methods
    {"get_pairing"
     (fn [_core _body]

@@ -36,9 +36,9 @@
   State is managed internally. User calls set-status! to update."
   []
   (let [state (atom {:message "" :is_error false})]
-    {:name                                                                                          service-name
+    {:name service-name
      :spec
-     {:name                                                                            service-name
+     {:name service-name
       :methods
       {"get_status"
        (fn [_core _body]

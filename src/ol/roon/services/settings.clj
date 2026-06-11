@@ -48,9 +48,9 @@
 
   Returns a service instance to pass to :provided-services."
   [layout-fn]
-  {:name                                                                                    service-name
+  {:name service-name
    :spec
-   {:name                                                                      service-name
+   {:name service-name
     :methods
     {"get_settings"
      (fn [_core _body]

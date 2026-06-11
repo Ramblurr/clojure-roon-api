@@ -14,6 +14,7 @@
     }@inputs:
     devenv.lib.mkFlake ./. {
       inherit inputs;
+      systems = [ "x86_64-linux" ];
       nixpkgs.config.allowUnfree = true;
       withOverlays = [
         devshell.overlays.default
