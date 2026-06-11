@@ -3,7 +3,7 @@
   inputs = {
     nixpkgs.url = "https://flakehub.com/f/NixOS/nixpkgs/0.1"; # tracks nixpkgs unstable branch
     devshell.url = "github:numtide/devshell";
-    devenv.url = "https://flakehub.com/f/ramblurr/nix-devenv/*";
+    devenv.url = "github:ramblurr/nix-devenv";
   };
   outputs =
     {
@@ -11,8 +11,9 @@
       devenv,
       devshell,
       ...
-    }:
+    }@inputs:
     devenv.lib.mkFlake ./. {
+      inherit inputs;
       nixpkgs.config.allowUnfree = true;
       withOverlays = [
         devshell.overlays.default
@@ -27,6 +28,8 @@
           ];
           # https://numtide.github.io/devshell
           commands = [
+            { package = pkgs.ghidra; }
+            { package = pkgs.ilspycmd; }
             { package = pkgs.roon-server; }
           ];
           packages = [
